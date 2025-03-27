@@ -23,7 +23,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          # Removed the cache option to avoid issues with lock files
       
       - name: Install dependencies (clean install)
         run: |
@@ -32,6 +31,27 @@ jobs:
       
       - name: Generate RSS feed
         run: npm start
+      
+      - name: Debug output directory
+        run: |
+          echo "Checking if dist directory exists:"
+          ls -la
+          
+          if [ -d "dist" ]; then
+            echo "Contents of dist directory:"
+            ls -la dist
+            
+            if [ -f "dist/artists-feed.xml" ]; then
+              echo "artists-feed.xml file exists!"
+              echo "File size: $(stat -c%s dist/artists-feed.xml) bytes"
+              echo "First 100 characters of the file:"
+              head -c 100 dist/artists-feed.xml
+            else
+              echo "artists-feed.xml not found!"
+            fi
+          else
+            echo "dist directory not found!"
+          fi
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
