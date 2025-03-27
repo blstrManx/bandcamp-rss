@@ -17,19 +17,21 @@ fs.ensureDirSync(outputDir);
 
 /**
  * Scrape releases from an artist page
- * @param {Object} artist - Artist object with name and url
+ * @param {Object} artist - Artist object with name, url, and optionally maxReleases
  * @returns {Promise<Array>} - Array of release objects
  */
 async function scrapeArtistReleases(artist) {
   const { url } = artist;
+  // Get the maximum number of releases to scrape from artist object or use default
+  const maxReleases = artist.maxReleases || 2; // Default to 2 if not specified
   
   // Determine which scraper to use based on the URL
   if (url.includes('bandcamp.com')) {
-    return scrapeBandcamp(url);
+    return scrapeBandcamp(url, maxReleases);
   } else if (url.includes('soundcloud.com')) {
-    return scrapeSoundcloud(url);
+    return scrapeSoundcloud(url, maxReleases);
   } else if (url.includes('spotify.com')) {
-    return scrapeSpotify(url);
+    return scrapeSpotify(url, maxReleases);
   } else {
     // For demo purposes, return a sample release
     return [{
@@ -45,20 +47,21 @@ async function scrapeArtistReleases(artist) {
 /**
  * Scrape releases from a Bandcamp artist page
  * @param {string} url - Bandcamp artist URL
+ * @param {number} maxReleases - Maximum number of releases to scrape (from artist config)
  * @returns {Promise<Array>} - Array of release objects
  */
-async function scrapeBandcamp(url) {
+async function scrapeBandcamp(url, maxReleases = 5) {
   try {
     // First fetch the artist page to get all album links
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const releases = [];
 
-    // Get album/track items from the page - limit to 5 most recent
+    // Get album/track items from the page - limit to maxReleases
     const albumItems = $('.music-grid-item');
-    const itemCount = Math.min(albumItems.length, 5); // Only process the first 5 items
+    const itemCount = Math.min(albumItems.length, maxReleases);
     
-    console.log(`Found ${albumItems.length} releases, processing first ${itemCount}`);
+    console.log(`Found ${albumItems.length} releases, processing first ${itemCount} (maxReleases: ${maxReleases})`);
     
     for (let i = 0; i < itemCount; i++) {
       const el = albumItems[i];
@@ -242,14 +245,27 @@ async function scrapeBandcamp(url) {
  * @param {string} url - SoundCloud artist URL
  * @returns {Promise<Array>} - Array of release objects
  */
-async function scrapeSoundcloud(url) {
+/**
+ * Scrape releases from a SoundCloud artist page
+ * @param {string} url - SoundCloud artist URL
+ * @param {number} maxReleases - Maximum number of releases to scrape
+ * @returns {Promise<Array>} - Array of release objects
+ */
+async function scrapeSoundcloud(url, maxReleases = 2) {
   try {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const releases = [];
 
     // SoundCloud-specific selectors for releases
-    $('.soundList__item').each((i, el) => {
+    const soundItems = $('.soundList__item');
+    console.log(`Found ${soundItems.length} SoundCloud items, processing up to ${maxReleases}`);
+    
+    let count = 0;
+    soundItems.each((i, el) => {
+      // Stop if we've reached the maximum
+      if (count >= maxReleases) return false;
+      
       const title = $(el).find('.soundTitle__title').text().trim();
       const releaseUrl = $(el).find('.soundTitle__title').attr('href');
       const imageUrl = $(el).find('.image__full').attr('src') || '';
@@ -275,6 +291,7 @@ async function scrapeSoundcloud(url) {
           image: imageUrl,
           description: `New track on SoundCloud`
         });
+        count++;
       }
     });
 
@@ -299,9 +316,11 @@ async function scrapeSoundcloud(url) {
 /**
  * Scrape releases from a Spotify artist page
  * @param {string} url - Spotify artist URL
+ * @param {number} maxReleases - Maximum number of releases to scrape
  * @returns {Promise<Array>} - Array of release objects
  */
-async function scrapeSpotify(url) {
+async function scrapeSpotify(url, maxReleases = 2) {
+  console.log(`Spotify scraping requested with maxReleases: ${maxReleases}`);
   // For demo purposes, return a sample release
   return [{
     title: "Sample Spotify Release",
@@ -652,12 +671,11 @@ async function generateFeed() {
     await fs.writeFile(path.join(outputDir, 'index.html'), indexHtml);
     console.log(`Index page written to ${path.join(outputDir, 'index.html')}`);
 
-  } catch (error) {
+  } atch (error) {
     console.error('Error generating feed:', error);
     // Create minimal output files even if there's an error
     try {
-      const outputDir = path.join(__dirname, 'dist');
-      fs.ensureDirSync(outputDir);
+      // Note: don't reference 'releases' here as it's out of scope
       
       // Create a minimal RSS feed
       const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
