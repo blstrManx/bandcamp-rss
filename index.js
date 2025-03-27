@@ -223,7 +223,7 @@ async function scrapeBandcamp(url, maxReleases = 2) {
       }
       
       // Add a small delay to avoid overloading the server
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 700));
     }
 
     // Sort the releases by date, newest first
@@ -548,31 +548,94 @@ async function generateFeedForFile(jsonFile, fullPath) {
     
     // Determine output file path
     const outputFile = path.join(outputFeedDir, `${feedId}-feed.xml`);
+
+	// Generate and write the feed
+	if (totalReleaseCount === 0) {
+	  console.log(`No actual releases found for ${jsonFile}. Creating minimal feed.`);
+	  
+	  // Create a minimal feed with a message
+	  const rssOutput = `<?xml version="1.0" encoding="utf-8"?>
+	<rss version="2.0">
+	  <channel>
+		<title>${feedTitle}</title>
+		<description>${feedDescription}</description>
+		<link>https://github.com/user/artist-rss-feed-generator</link>
+		<lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+		<item>
+		  <title>No Releases Found</title>
+		  <link>https://github.com/user/artist-rss-feed-generator</link>
+		  <description>No releases were found for the configured artists. Please check your artists list.</description>
+		  <pubDate>${new Date().toUTCString()}</pubDate>
+		  <guid>https://github.com/user/artist-rss-feed-generator/no-releases-${Date.now()}</guid>
+		</item>
+	  </channel>
+	</rss>`;
+	  
+	  await fs.writeFile(outputFile, rssOutput);
+	} else {
+	  // Generate the RSS feed XML
+	  console.log(`Generating RSS feed for ${jsonFile} with ${feed.items.length} items`);
+	  const rssOutput = feed.rss2();
+	  
+	  // Debug check - verify the XML output has items
+	  const hasItems = rssOutput.includes("<item>");
+	  console.log(`XML output contains items: ${hasItems}`);
+	  
+	  // If the feed.rss2() didn't include items, generate manual XML
+	  if (!hasItems && feed.items.length > 0) {
+		console.log("Feed.rss2() failed to include items, using manual XML generation");
+		
+		// Start with channel info
+		let manualRssOutput = `<?xml version="1.0" encoding="utf-8"?>
+	<rss version="2.0">
+	  <channel>
+		<title>${feedTitle}</title>
+		<description>${feedDescription}</description>
+		<link>https://github.com/user/artist-rss-feed-generator</link>
+		<lastBuildDate>${new Date().toUTCString()}</lastBuildDate>`;
+		
+		// Add each item manually
+		for (const item of feed.items) {
+		  manualRssOutput += `
+		<item>
+		  <title>${item.title}</title>
+		  <link>${item.link}</link>
+		  <guid>${item.id || item.link}</guid>
+		  <pubDate>${item.date.toUTCString()}</pubDate>
+		  <description>${item.description}</description>`;
+		  
+		  // Add author if available
+		  if (item.author && item.author.length > 0) {
+			manualRssOutput += `
+		  <author>${item.author[0].name}</author>`;
+		  }
+		  
+		  // Add image if available
+		  if (item.image && item.image.url) {
+			manualRssOutput += `
+		  <enclosure url="${item.image.url}" type="image/jpeg" />`;
+		  }
+		  
+		  manualRssOutput += `
+		</item>`;
+		}
+		
+		// Close the channel and rss tags
+		manualRssOutput += `
+	  </channel>
+	</rss>`;
+		
+		// Write the manually generated RSS
+		await fs.writeFile(outputFile, manualRssOutput);
+		console.log(`Manually generated RSS feed written to ${outputFile}`);
+	  } else {
+		// Write the feed to the output directory
+		await fs.writeFile(outputFile, rssOutput);
+		console.log(`Generated RSS feed written to ${outputFile}`);
+	  }
+	}
     
-    // Generate and write the feed
-    if (totalReleaseCount === 0) {
-      console.log(`No actual releases found for ${jsonFile}. Creating minimal feed.`);
-      
-      // Create a minimal feed with a message
-      const rssOutput = `<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0">
-  <channel>
-    <title>${feedTitle}</title>
-    <description>${feedDescription}</description>
-    <link>https://github.com/user/artist-rss-feed-generator</link>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <item>
-      <title>No Releases Found</title>
-      <link>https://github.com/user/artist-rss-feed-generator</link>
-      <description>No releases were found for the configured artists. Please check your artists list.</description>
-      <pubDate>${new Date().toUTCString()}</pubDate>
-      <guid>https://github.com/user/artist-rss-feed-generator/no-releases-${Date.now()}</guid>
-    </item>
-  </channel>
-</rss>`;
-      
-      await fs.writeFile(outputFile, rssOutput);
-    } else {
+	else {
       // Generate the RSS feed XML
       const rssOutput = feed.rss2();
       
@@ -664,7 +727,7 @@ async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, re
 <body>
   <div class="container">
     <div class="back-link">
-      <a href="../index.html">← Back to All Feeds</a>
+      <a href="../">← Back to All Feeds</a>
     </div>
     
     <h1>${feedTitle}</h1>
@@ -681,7 +744,13 @@ async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, re
     <p>Last updated: ${
       (() => {
         const now = new Date();
-        return now.toLocaleString();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
       })()
     }</p>
     
