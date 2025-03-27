@@ -393,22 +393,34 @@ async function generateFeed() {
           return true;
         });
         
-        // Add each real release to the feed
-        for (const release of realReleases) {
-          feed.addItem({
-            title: `${artist.name} - ${release.title}`,
-            id: release.url,
-            link: release.url,
-            description: release.description || `New release by ${artist.name}`,
-            author: [
-              {
-                name: artist.name,
-                link: artist.url
-              }
-            ],
-            date: release.date || new Date()
-          });
-        }
+        // For richer RSS readers that support HTML in description, you can also enhance
+		// the description to include the image directly, like this:
+
+		// Add this where we process each release in the generateFeed function
+		const enhancedDescription = release.image 
+		  ? `<p><img src="${release.image}" alt="${artist.name} - ${release.title}" style="max-width:100%;"></p>
+			 <p>${release.description || `New release by ${artist.name}`}</p>`
+		  : (release.description || `New release by ${artist.name}`);
+
+		// Then update the feed.addItem call to use this enhanced description:
+		feed.addItem({
+		  title: `${artist.name} - ${release.title}`,
+		  id: release.url,
+		  link: release.url,
+		  description: enhancedDescription,
+		  author: [
+			{
+			  name: artist.name,
+			  link: artist.url
+			}
+		  ],
+		  date: release.date || new Date(),
+		  image: release.image ? {
+			url: release.image,
+			title: `${artist.name} - ${release.title}`,
+			link: release.url
+		  } : undefined
+		});
         
         const filteredCount = releases.length - realReleases.length;
         totalReleaseCount += realReleases.length;
