@@ -273,6 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const statusMsg = document.getElementById('status-message');
       statusMsg.textContent = 'Adding artist to repository...';
       statusMsg.className = 'status-message info';
+      statusMsg.style.display = 'block';
       
       try {
         // Add the artist to the repository
@@ -317,6 +318,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset button state
         submitButton.disabled = false;
         submitButton.textContent = originalButtonText;
+      }
+    });
+  }
+  
+  // Token access button
+  const tokenAccessButton = document.getElementById('token-access-button');
+  if (tokenAccessButton) {
+    tokenAccessButton.addEventListener('click', function() {
+      window.open('https://github.com/settings/tokens', '_blank');
+    });
+  }
+  
+  // Prefill token button
+  const prefillTokenButton = document.getElementById('prefill-token-button');
+  if (prefillTokenButton) {
+    prefillTokenButton.addEventListener('click', function() {
+      const savedToken = localStorage.getItem('github_token');
+      if (savedToken) {
+        document.getElementById('github-token').value = savedToken;
+        alert('Token filled from your saved tokens');
+      } else {
+        alert('No saved token found');
       }
     });
   }
@@ -604,6 +627,23 @@ document.addEventListener('DOMContentLoaded', fetchArtistList);
     .tab-content.active {
       display: block;
     }
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .secondary-button {
+      background-color: var(--secondary-bg);
+      color: var(--link-color);
+      border: 1px solid var(--link-color);
+    }
+    .info-button {
+      background-color: var(--secondary-bg);
+      color: var(--info-color);
+      border: 1px solid var(--info-color);
+      padding: 8px 12px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -685,10 +725,11 @@ document.addEventListener('DOMContentLoaded', fetchArtistList);
             <label for="github-token">GitHub Personal Access Token</label>
             <input type="password" id="github-token" required placeholder="ghp_xxxxxxxxxxxx">
             <div class="token-info">
-              Needs permissions: repo, workflow<br>
-              <a href="https://github.com/settings/tokens" target="_blank" style="color: var(--link-color);">
-                Generate a token here
-              </a>
+              Needs permissions: repo, workflow
+            </div>
+            <div class="button-row">
+              <button type="button" id="token-access-button" class="secondary-button">Access GitHub Tokens</button>
+              <button type="button" id="prefill-token-button" class="info-button">Use Saved Token</button>
             </div>
           </div>
           
