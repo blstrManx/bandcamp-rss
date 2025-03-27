@@ -453,6 +453,79 @@ async function generateFeed() {
       }
     }
 
+	console.log(`Total real releases count: ${totalReleaseCount}`);
+
+	// Check the filtering logic that's handling real releases
+	// Update the filter function to be more detailed in logging:
+
+	const realReleases = releases.filter(release => {
+	  // Log every release that's being evaluated
+	  console.log(`Evaluating release: "${release.title}" (URL: ${release.url})`);
+	  
+	  // Skip releases with "Sample" or "Example" in title
+	  if (
+		release.title.includes("Sample") || 
+		release.title.includes("Error Reading") || 
+		release.title.includes("Example") || 
+		release.title.includes("Demo")
+	  ) {
+		console.log(`  - Filtered out: Has sample/example keyword in title`);
+		return false;
+	  }
+	  
+	  // Skip releases with example URLs
+	  if (
+		release.url.includes("example.com") || 
+		!release.url.includes(".")
+	  ) {
+		console.log(`  - Filtered out: Has example URL or invalid URL`);
+		return false;
+	  }
+	  
+	  // Additional check: Log release date
+	  console.log(`  - Release date: ${release.date}`);
+	  
+	  // Make sure date is valid
+	  if (!release.date || isNaN(release.date.getTime())) {
+		console.log(`  - Filtered out: Invalid date`);
+		return false;
+	  }
+	  
+	  console.log(`  - Keeping this release`);
+	  return true;
+	});
+
+	// Add logging after adding items to the feed
+	console.log(`Total items added to feed: ${feed.items.length}`);
+
+	// Alternative fix: Make sure the feed item is added correctly
+	// You could modify the feed.addItem call to be more robust:
+
+	try {
+	  feed.addItem({
+		title: `${artist.name} - ${release.title}`,
+		id: release.url,
+		link: release.url,
+		description: safeDescription, // Use the non-HTML version for safer output
+		content: enhancedDescription, // Put the HTML in content instead
+		author: [
+		  {
+			name: artist.name,
+			link: artist.url
+		  }
+		],
+		date: release.date || new Date(),
+		image: release.image ? {
+		  url: safeImageUrl,
+		  title: safeTitle,
+		  link: release.url
+		} : undefined
+	  });
+	  console.log(`Successfully added item: ${artist.name} - ${release.title}`);
+	} catch (e) {
+	  console.error(`Error adding feed item ${artist.name} - ${release.title}: ${e.message}`);
+	}
+
     // Only generate feed if we have real content
     if (totalReleaseCount === 0) {
       console.log("No actual releases found for any artists. Not generating empty feed.");
