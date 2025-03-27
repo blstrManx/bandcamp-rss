@@ -396,7 +396,7 @@ async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, re
   const htmlPath = path.join(outputFeedDir, `${feedId}.html`);
   
   // Calculate the correct back link path based on directory depth
-  let backLink = "/";
+  let backLink = "/bandcamp-rss/";
   
   // If we're in a nested directory, we need to add more '../' to get back to root
   if (feedDirectory !== '.') {
