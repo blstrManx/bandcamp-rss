@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { Feed } from 'feed';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import glob from 'glob';
+import { glob } from 'glob';
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url);
