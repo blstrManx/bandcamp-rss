@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Feed } from 'feed';
 import axios from 'axios';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio'; // Fixed import syntax for cheerio
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url);
