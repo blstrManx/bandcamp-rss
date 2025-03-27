@@ -57,6 +57,9 @@ def generate_rss():
     artists = load_artists()
     if not artists:
         print("No artists found in the list!")
+    else:
+        print(f"Loaded {len(artists)} artists: {artists}")  # Debug: Print the list of artists
+
     for artist_url in artists:
         print(f"Fetching releases for artist: {artist_url}")
         releases = fetch_bandcamp_releases(artist_url)
@@ -70,6 +73,7 @@ def generate_rss():
     
     fg.rss_file(RSS_FILE)
     print(f"RSS feed generated: {RSS_FILE}")
+
 
 
 import os
