@@ -1,32 +1,28 @@
 {
   "artists": [
     {
-      "name": "Example Artist",
-      "url": "https://example.com/artist/page"
-    },
-	{
       "name": "HARDCORE TANO*C",
-      "url": "https://tanoc.bandcamp.com/"
+      "url": "https://tanoc.bandcamp.com/music"
     },
     {
       "name": "International Anthem Recording Company",
-      "url": "https://intlanthem.bandcamp.com/"
+      "url": "https://intlanthem.bandcamp.com/music"
     },
 	{
       "name": "Hubro",
-      "url": "https://hubromusic.bandcamp.com/"
+      "url": "https://hubromusic.bandcamp.com/music"
     },
 	{
       "name": "Warp Records",
-      "url": "https://warprecords.bandcamp.com/"
+      "url": "https://warprecords.bandcamp.com/music"
     },
 	{
       "name": "Brainfeeder",
-      "url": "https://brainfeeder.bandcamp.com/"
+      "url": "https://brainfeeder.bandcamp.com/music"
     },
 	{
       "name": "Kranky Records",
-      "url": "https://kranky.bandcamp.com/"
+      "url": "https://kranky.bandcamp.com/music"
     },
 	{
       "name": "bbe",
@@ -34,15 +30,15 @@
     },
 	{
       "name": "Underscores",
-      "url": "https://underscores.bandcamp.com/"
+      "url": "https://underscores.bandcamp.com/music"
     },
 	{
       "name": "Tsubi Club",
-      "url": "https://tsubiclub.bandcamp.com/"
+      "url": "https://tsubiclub.bandcamp.com/music"
     },
 	{
       "name": "Internet Girl",
-      "url": "https://internetgirl.bandcamp.com/"
+      "url": "https://internetgirl.bandcamp.com/music"
     }
   ]
 }
