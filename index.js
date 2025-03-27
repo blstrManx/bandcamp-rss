@@ -441,14 +441,10 @@ async function generateFeed() {
   <channel>
     <title>Bandcamp Releases RSS Feed</title>
     <description>Latest releases from your favorite artists</description>
-    <link>https://github.com/user/artist-rss-feed-generator</link>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <item>
       <title>No Releases Found</title>
-      <link>https://github.com/user/artist-rss-feed-generator</link>
       <description>No releases were found for the configured artists. Please check your artists.json file.</description>
-      <pubDate>${new Date().toUTCString()}</pubDate>
-      <guid>https://github.com/user/artist-rss-feed-generator/no-releases-${Date.now()}</guid>
     </item>
   </channel>
 </rss>`;
