@@ -671,7 +671,7 @@ async function generateFeed() {
     await fs.writeFile(path.join(outputDir, 'index.html'), indexHtml);
     console.log(`Index page written to ${path.join(outputDir, 'index.html')}`);
 
-  } atch (error) {
+  } catch (error) {
     console.error('Error generating feed:', error);
     // Create minimal output files even if there's an error
     try {
