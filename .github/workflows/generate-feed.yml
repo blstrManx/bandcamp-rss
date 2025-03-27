@@ -29,11 +29,6 @@ jobs:
           rm -f package-lock.json
           npm install --no-package-lock
       
-      - name: List files in directory
-        run: |
-          echo "Repository contents:"
-          ls -la
-      
       - name: Generate RSS feed
         run: npm start
       
@@ -41,13 +36,15 @@ jobs:
         run: |
           echo "Output directory (dist) contents:"
           ls -la dist
+      
+      - name: Ensure README is not deployed
+        run: |
+          # Create a .nojekyll file to disable GitHub Pages Jekyll processing
+          touch dist/.nojekyll
           
-          if [ -f "dist/artists-feed.xml" ]; then
-            echo "artists-feed.xml exists and has size $(du -h dist/artists-feed.xml | cut -f1)"
-            echo "First 200 characters:"
-            head -c 200 dist/artists-feed.xml
-          else
-            echo "ERROR: artists-feed.xml was not generated!"
+          # Ensure no README.md exists in the dist folder
+          if [ -f "dist/README.md" ]; then
+            rm dist/README.md
           fi
       
       - name: Deploy to GitHub Pages
@@ -59,6 +56,8 @@ jobs:
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: 'Update RSS feed'
+          # Add .nojekyll file to disable Jekyll processing
+          enable_jekyll: false
       
       - name: Deployment status
         run: |
