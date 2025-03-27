@@ -556,16 +556,14 @@ async function generateFeed() {
       const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
   <channel>
-    <title>Bandcamp Releases RSS Feed</title>
+    <title>Artist Releases RSS Feed</title>
     <description>Latest releases from your favorite artists</description>
-    <link>https://github.com/user/artist-rss-feed-generator</link>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <item>
       <title>Error Generating Feed</title>
-      <link>https://github.com/user/artist-rss-feed-generator</link>
+      <link>https://github.com/blstrManx/bandcamp-rss</link>
       <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
       <pubDate>${new Date().toUTCString()}</pubDate>
-      <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
     </item>
   </channel>
 </rss>`;
