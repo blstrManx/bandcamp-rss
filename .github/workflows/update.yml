@@ -24,7 +24,8 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 feedgen
+        run: |
+          pip install requests beautifulsoup4 feedgen  # Install dependencies
 
       - name: Run RSS generator
         run: python scraper.py

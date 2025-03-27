@@ -55,8 +55,13 @@ def generate_rss():
     fg.description("Latest releases from followed Bandcamp artists")
     
     artists = load_artists()
+    if not artists:
+        print("No artists found in the list!")
     for artist_url in artists:
+        print(f"Fetching releases for artist: {artist_url}")
         releases = fetch_bandcamp_releases(artist_url)
+        if not releases:
+            print(f"No releases found for {artist_url}")
         for release in releases:
             fe = fg.add_entry()
             fe.title(release["title"])
@@ -65,6 +70,7 @@ def generate_rss():
     
     fg.rss_file(RSS_FILE)
     print(f"RSS feed generated: {RSS_FILE}")
+
 
 import os
 
