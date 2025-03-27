@@ -64,14 +64,20 @@ async function scrapeBandcamp(url, maxReleases = 2) {
     const $ = cheerio.load(data);
     const releases = [];
 
-    // Get album/track items from the page - limit to maxReleases
+    // Get album/track items from the page
     const albumItems = $('.music-grid-item');
-    const itemCount = Math.min(albumItems.length, maxReleases);
     
-    console.log(`Found ${albumItems.length} releases, processing first ${itemCount} (maxReleases: ${maxReleases})`);
+    console.log(`Found ${albumItems.length} potential releases, targeting ${maxReleases} valid releases`);
     
-    for (let i = 0; i < itemCount; i++) {
+    // Process albums until we reach maxReleases valid (non-future) releases
+    // or until we've gone through all available albums
+    let validReleasesCount = 0;
+    let i = 0;
+    
+    while (validReleasesCount < maxReleases && i < albumItems.length) {
       const el = albumItems[i];
+      i++; // Increment the counter before any continues
+      
       const albumUrl = $(el).find('a').attr('href');
       const title = $(el).find('.title').text().trim();
       const imageUrl = $(el).find('img').attr('src') || '';
@@ -198,7 +204,7 @@ async function scrapeBandcamp(url, maxReleases = 2) {
         
         if (isFutureRelease) {
           console.log(`Skipping future release: ${title} (Release date: ${releaseDate.toISOString()})`);
-          continue; // Skip this release and move to the next one
+          continue; // Skip this release and move to the next one without incrementing validReleasesCount
         }
         
         // If we got here, it's not a future release, so add it
@@ -210,6 +216,9 @@ async function scrapeBandcamp(url, maxReleases = 2) {
           description
         });
         
+        // Increment the count of valid releases we've added
+        validReleasesCount++;
+        
       } catch (albumError) {
         console.error(`Error fetching album details for ${title}: ${albumError.message}`);
         // Add with basic info and current date if album page fetch fails
@@ -220,11 +229,16 @@ async function scrapeBandcamp(url, maxReleases = 2) {
           image: imageUrl,
           description: `New release by ${artistOverride || 'artist'}`
         });
+        
+        // We still count this as a valid release even though it had an error
+        validReleasesCount++;
       }
       
       // Add a small delay to avoid overloading the server
       await new Promise(resolve => setTimeout(resolve, 700));
     }
+    
+    console.log(`Finished processing. Got ${releases.length} valid releases out of ${i} checked albums.`);
 
     // Sort the releases by date, newest first
     releases.sort((a, b) => b.date - a.date);
