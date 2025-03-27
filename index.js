@@ -49,37 +49,118 @@ async function scrapeArtistReleases(artist) {
  */
 async function scrapeBandcamp(url) {
   try {
+    // First fetch the artist page to get all album links
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const releases = [];
 
-    // Bandcamp-specific selectors for releases
-    $('.music-grid-item').each((i, el) => {
-      const releaseUrl = $(el).find('a').attr('href');
+    // Get all album/track items from the page
+    const albumItems = $('.music-grid-item');
+    
+    for (let i = 0; i < albumItems.length; i++) {
+      const el = albumItems[i];
+      const albumUrl = $(el).find('a').attr('href');
       const title = $(el).find('.title').text().trim();
       const imageUrl = $(el).find('img').attr('src') || '';
-      const dateText = $(el).find('.released').text().trim();
+      const artistOverride = $(el).find('.artist-override').text().trim();
       
-      // Parse date or use current date if not found
-      let date;
+      // Make sure the URL is absolute
+      const fullAlbumUrl = albumUrl.startsWith('http') ? albumUrl : 
+                         (albumUrl.startsWith('/') ? new URL(albumUrl, url).toString() : `${url}${albumUrl}`);
+      
       try {
-        if (dateText) {
-          date = new Date(dateText.replace('released ', ''));
-        } else {
-          date = new Date();
+        // Fetch the album page to get detailed info
+        console.log(`Fetching album details from: ${fullAlbumUrl}`);
+        const { data: albumData } = await axios.get(fullAlbumUrl);
+        const albumPage = cheerio.load(albumData);
+        
+        // Look for the release date in the album metadata
+        let releaseDate;
+        
+        // Try to find the release date in the tralbum data (embedded JSON)
+        const scriptTags = albumPage('script[type="application/ld+json"]');
+        let foundDate = false;
+        
+        scriptTags.each((_, script) => {
+          if (foundDate) return;
+          
+          try {
+            const jsonData = JSON.parse(albumPage(script).html());
+            if (jsonData && jsonData.datePublished) {
+              releaseDate = new Date(jsonData.datePublished);
+              foundDate = true;
+            }
+          } catch (e) {
+            // Continue if this script tag doesn't contain valid JSON
+          }
+        });
+        
+        // If we couldn't find date in JSON, look for it in the page content
+        if (!foundDate) {
+          // Look for the release date in the album credits section
+          const creditsText = albumPage('.tralbumData.tralbum-credits').text();
+          const releaseDateMatch = creditsText.match(/released\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
+          
+          if (releaseDateMatch && releaseDateMatch[1]) {
+            releaseDate = new Date(releaseDateMatch[1]);
+          } else {
+            // Try another common format
+            const altDateMatch = albumPage('.tralbumData.tralbum-about-release-date').text().trim();
+            if (altDateMatch) {
+              releaseDate = new Date(altDateMatch);
+            }
+          }
         }
-      } catch (e) {
-        date = new Date();
+        
+        // If still no date found, try another selector specific to Bandcamp
+        if (!releaseDate || isNaN(releaseDate.getTime())) {
+          const dateElement = albumPage('meta[itemprop="datePublished"]');
+          if (dateElement.length) {
+            const dateContent = dateElement.attr('content');
+            if (dateContent) {
+              releaseDate = new Date(dateContent);
+            }
+          }
+        }
+        
+        // Set description (might include album notes if available)
+        let description = `New release by ${artistOverride || 'artist'}`;
+        const albumNotes = albumPage('.tralbum-about').text().trim();
+        if (albumNotes) {
+          description = albumNotes.length > 300 ? 
+                      albumNotes.substring(0, 297) + '...' : 
+                      albumNotes;
+        }
+        
+        // If we still don't have a date, use current date as fallback
+        if (!releaseDate || isNaN(releaseDate.getTime())) {
+          console.log(`Couldn't find release date for: ${title}. Using current date.`);
+          releaseDate = new Date();
+        }
+        
+        releases.push({
+          title,
+          url: fullAlbumUrl,
+          date: releaseDate,
+          image: imageUrl,
+          description
+        });
+        
+      } catch (albumError) {
+        console.error(`Error fetching album details for ${title}: ${albumError.message}`);
+        // Add with basic info and current date if album page fetch fails
+        releases.push({
+          title,
+          url: fullAlbumUrl,
+          date: new Date(),
+          image: imageUrl,
+          description: `New release by ${artistOverride || 'artist'}`
+        });
       }
-
-      releases.push({
-        title,
-        url: releaseUrl.startsWith('http') ? releaseUrl : url + releaseUrl,
-        date,
-        image: imageUrl,
-        description: `New release by ${$(el).find('.artist-override').text().trim() || 'artist'}`
-      });
-    });
+      
+      // Add a small delay to avoid overloading the server
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
     return releases.length > 0 ? releases : [{
       title: "Sample Bandcamp Release",
