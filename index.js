@@ -15,10 +15,162 @@ const outputDir = path.join(__dirname, 'dist');
 // Ensure the output directory exists
 fs.ensureDirSync(outputDir);
 
+async function scrapeArtistReleases(artist) {
+  const { url } = artist;
+  
+  // Determine which scraper to use based on the URL
+  if (url.includes('bandcamp.com')) {
+    return scrapeBandcamp(url);
+  } else if (url.includes('soundcloud.com')) {
+    return scrapeSoundcloud(url);
+  } else if (url.includes('spotify.com')) {
+    return scrapeSpotify(url);
+  } else {
+    // For demo purposes, return a sample release
+    return [{
+      title: "Sample Release",
+      url: "https://example.com/sample-release",
+      date: new Date(),
+      image: "",
+      description: `Demo release for ${artist.name}`
+    }];
+  }
+}
+
+/**
+ * Scrape releases from a Bandcamp artist page
+ * @param {string} url - Bandcamp artist URL
+ * @returns {Promise<Array>} - Array of release objects
+ */
+async function scrapeBandcamp(url) {
+  try {
+    const { data } = await axios.get(url);
+    const $ = cheerio.load(data);
+    const releases = [];
+
+    // Bandcamp-specific selectors for releases
+    $('.music-grid-item').each((i, el) => {
+      const releaseUrl = $(el).find('a').attr('href');
+      const title = $(el).find('.title').text().trim();
+      const imageUrl = $(el).find('img').attr('src') || '';
+      const dateText = $(el).find('.released').text().trim();
+      
+      // Parse date or use current date if not found
+      let date;
+      try {
+        if (dateText) {
+          date = new Date(dateText.replace('released ', ''));
+        } else {
+          date = new Date();
+        }
+      } catch (e) {
+        date = new Date();
+      }
+
+      releases.push({
+        title,
+        url: releaseUrl.startsWith('http') ? releaseUrl : url + releaseUrl,
+        date,
+        image: imageUrl,
+        description: `New release by ${$(el).find('.artist-override').text().trim() || 'artist'}`
+      });
+    });
+
+    return releases.length > 0 ? releases : [{
+      title: "Sample Bandcamp Release",
+      url: url,
+      date: new Date(),
+      image: "",
+      description: "Demo release (no actual releases found)"
+    }];
+  } catch (error) {
+    console.error(`Error scraping Bandcamp: ${error.message}`);
+    return [{
+      title: "Error Reading Bandcamp",
+      url: url,
+      date: new Date(),
+      description: "Could not retrieve releases"
+    }];
+  }
+}
+
+/**
+ * Scrape releases from a SoundCloud artist page
+ * @param {string} url - SoundCloud artist URL
+ * @returns {Promise<Array>} - Array of release objects
+ */
+async function scrapeSoundcloud(url) {
+  try {
+    const { data } = await axios.get(url);
+    const $ = cheerio.load(data);
+    const releases = [];
+
+    // SoundCloud-specific selectors for releases
+    $('.soundList__item').each((i, el) => {
+      const title = $(el).find('.soundTitle__title').text().trim();
+      const releaseUrl = $(el).find('.soundTitle__title').attr('href');
+      const imageUrl = $(el).find('.image__full').attr('src') || '';
+      const dateText = $(el).find('.soundTitle__uploadTime').text().trim();
+      
+      // Parse date or use current date if not found
+      let date;
+      try {
+        if (dateText) {
+          date = new Date(dateText);
+        } else {
+          date = new Date();
+        }
+      } catch (e) {
+        date = new Date();
+      }
+
+      if (title && releaseUrl) {
+        releases.push({
+          title,
+          url: releaseUrl.startsWith('http') ? releaseUrl : `https://soundcloud.com${releaseUrl}`,
+          date,
+          image: imageUrl,
+          description: `New track on SoundCloud`
+        });
+      }
+    });
+
+    return releases.length > 0 ? releases : [{
+      title: "Sample SoundCloud Release",
+      url: url,
+      date: new Date(),
+      image: "",
+      description: "Demo release (no actual releases found)"
+    }];
+  } catch (error) {
+    console.error(`Error scraping SoundCloud: ${error.message}`);
+    return [{
+      title: "Error Reading SoundCloud",
+      url: url,
+      date: new Date(),
+      description: "Could not retrieve releases"
+    }];
+  }
+}
+
+/**
+ * Scrape releases from a Spotify artist page
+ * @param {string} url - Spotify artist URL
+ * @returns {Promise<Array>} - Array of release objects
+ */
+async function scrapeSpotify(url) {
+  // For demo purposes, return a sample release
+  return [{
+    title: "Sample Spotify Release",
+    url: url,
+    date: new Date(),
+    image: "",
+    description: "Demo release (Spotify requires authentication)"
+  }];
+}
+
 async function generateFeed() {
   try {
-    console.log('Generating RSS feed...');
-    
     // Read the artists.json file
     const artistsFile = path.join(__dirname, 'artists.json');
     console.log(`Reading artists from: ${artistsFile}`);
@@ -26,7 +178,6 @@ async function generateFeed() {
     let artistsData;
     try {
       artistsData = await fs.readJson(artistsFile);
-      console.log('Successfully read artists.json');
     } catch (error) {
       console.error(`Error reading artists.json: ${error.message}`);
       // Create a default artists list for demo
@@ -38,7 +189,6 @@ async function generateFeed() {
           }
         ]
       };
-      console.log('Using default artist data instead');
     }
     
     const artists = artistsData.artists || [];
@@ -50,8 +200,6 @@ async function generateFeed() {
         url: "https://example.com/demo"
       });
     }
-
-    console.log(`Found ${artists.length} artists to process`);
 
     // Create a new feed
     const feed = new Feed({
@@ -66,23 +214,35 @@ async function generateFeed() {
     });
 
     // Process each artist and add their releases to the feed
+    console.log(`Processing ${artists.length} artists...`);
+    
     for (const artist of artists) {
-      console.log(`Adding sample release for: ${artist.name}`);
+      console.log(`Scraping releases for: ${artist.name}`);
       
-      // Add a sample release for each artist
-      feed.addItem({
-        title: `${artist.name} - Demo Release`,
-        id: artist.url,
-        link: artist.url,
-        description: `Demo release by ${artist.name}`,
-        author: [
-          {
-            name: artist.name,
-            link: artist.url
-          }
-        ],
-        date: new Date()
-      });
+      try {
+        const releases = await scrapeArtistReleases(artist);
+        
+        // Add each release to the feed
+        for (const release of releases) {
+          feed.addItem({
+            title: `${artist.name} - ${release.title}`,
+            id: release.url,
+            link: release.url,
+            description: release.description || `New release by ${artist.name}`,
+            author: [
+              {
+                name: artist.name,
+                link: artist.url
+              }
+            ],
+            date: release.date || new Date()
+          });
+        }
+        
+        console.log(`Added ${releases.length} releases for ${artist.name}`);
+      } catch (error) {
+        console.error(`Error scraping ${artist.name}: ${error.message}`);
+      }
     }
 
     // Generate the RSS feed XML
@@ -92,15 +252,8 @@ async function generateFeed() {
     await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), rssOutput);
     console.log(`RSS feed written to ${path.join(outputDir, 'artists-feed.xml')}`);
     
-    // Also write a JSON file with just the artist info for easier parsing
-    await fs.writeFile(
-      path.join(outputDir, 'artists.json'), 
-      JSON.stringify(artists, null, 2)
-    );
-    console.log(`Artists JSON written to ${path.join(outputDir, 'artists.json')}`);
-    
-    // Create the add-artist handler script
-    const addArtistJs = `
+    // Create a simple index.html file
+    const indexHtml = `<!DOCTYPE html>
 // Function to handle the GitHub API
 async function addArtistToRepo(artistName, artistUrl, repoOwner, repoName) {
   try {
