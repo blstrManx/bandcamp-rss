@@ -213,7 +213,7 @@ async function scrapeBandcamp(url) {
       }
       
       // Add a small delay to avoid overloading the server
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     // Sort the releases by date, newest first
@@ -236,7 +236,6 @@ async function scrapeBandcamp(url) {
     }];
   }
 }
-
 
 /**
  * Scrape releases from a SoundCloud artist page
@@ -393,34 +392,57 @@ async function generateFeed() {
           return true;
         });
         
-        // For richer RSS readers that support HTML in description, you can also enhance
-		// the description to include the image directly, like this:
-
-		// Add this where we process each release in the generateFeed function
-		const enhancedDescription = release.image 
-		  ? `<p><img src="${release.image}" alt="${artist.name} - ${release.title}" style="max-width:100%;"></p>
-			 <p>${release.description || `New release by ${artist.name}`}</p>`
-		  : (release.description || `New release by ${artist.name}`);
-
-		// Then update the feed.addItem call to use this enhanced description:
-		feed.addItem({
-		  title: `${artist.name} - ${release.title}`,
-		  id: release.url,
-		  link: release.url,
-		  description: enhancedDescription,
-		  author: [
-			{
-			  name: artist.name,
-			  link: artist.url
-			}
-		  ],
-		  date: release.date || new Date(),
-		  image: release.image ? {
-			url: release.image,
-			title: `${artist.name} - ${release.title}`,
-			link: release.url
-		  } : undefined
-		});
+        // Add each real release to the feed
+        for (const release of realReleases) {
+          // Create enhanced description with embedded image and properly escape HTML entities
+          let safeDescription = (release.description || `New release by ${artist.name}`)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+          
+          let safeTitle = (artist.name + ' - ' + release.title)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+          
+          let safeImageUrl = '';
+          if (release.image) {
+            safeImageUrl = release.image
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&apos;');
+          }
+          
+          const enhancedDescription = release.image 
+            ? `<p><img src="${safeImageUrl}" alt="${safeTitle}" style="max-width:100%;"></p>
+               <p>${safeDescription}</p>`
+            : safeDescription;
+          
+          feed.addItem({
+            title: `${artist.name} - ${release.title}`,
+            id: release.url,
+            link: release.url,
+            description: enhancedDescription,
+            author: [
+              {
+                name: artist.name,
+                link: artist.url
+              }
+            ],
+            date: release.date || new Date(),
+            image: release.image ? {
+              url: release.image,
+              title: `${artist.name} - ${release.title}`,
+              link: release.url
+            } : undefined
+          });
+        }
         
         const filteredCount = releases.length - realReleases.length;
         totalReleaseCount += realReleases.length;
@@ -570,12 +592,14 @@ async function generateFeed() {
   <channel>
     <title>Artist Releases RSS Feed</title>
     <description>Latest releases from your favorite artists</description>
+    <link>https://github.com/user/artist-rss-feed-generator</link>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <item>
       <title>Error Generating Feed</title>
-      <link>https://github.com/blstrManx/bandcamp-rss</link>
+      <link>https://github.com/user/artist-rss-feed-generator</link>
       <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
       <pubDate>${new Date().toUTCString()}</pubDate>
+      <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
     </item>
   </channel>
 </rss>`;
@@ -603,5 +627,6 @@ async function generateFeed() {
     }
   }
 }
+
 // Run the feed generator
 generateFeed();
