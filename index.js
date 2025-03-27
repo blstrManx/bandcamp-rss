@@ -107,38 +107,51 @@ async function generateFeed() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Artist RSS Feed Generator</title>
   <style>
+    :root {
+      --bg-color: #121212;
+      --text-color: #e4e4e4;
+      --link-color: #90caf9;
+      --secondary-bg: #1e1e1e;
+      --accent-color: #bb86fc;
+      --border-color: #333333;
+    }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.6;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
     }
     .container {
       margin-top: 40px;
     }
-    h1 {
-      margin-bottom: 20px;
+    h1, h2, h3 {
+      color: var(--accent-color);
     }
     .feed-link {
-      background-color: #f5f5f5;
+      background-color: var(--secondary-bg);
       padding: 15px;
       border-radius: 5px;
       font-family: monospace;
       word-break: break-all;
+      border: 1px solid var(--border-color);
     }
     .feed-link a {
-      color: #0366d6;
+      color: var(--link-color);
       text-decoration: none;
     }
     .feed-link a:hover {
       text-decoration: underline;
     }
     pre {
-      background-color: #f6f8fa;
+      background-color: var(--secondary-bg);
       border-radius: 6px;
       padding: 16px;
       overflow: auto;
+      border: 1px solid var(--border-color);
     }
     ul.artist-list {
       padding-left: 20px;
@@ -147,11 +160,20 @@ async function generateFeed() {
       margin-bottom: 8px;
     }
     .artist-link {
-      color: #0366d6;
+      color: var(--link-color);
       text-decoration: none;
     }
     .artist-link:hover {
       text-decoration: underline;
+    }
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.9em;
+    }
+    footer a {
+      color: var(--link-color);
     }
   </style>
 </head>
