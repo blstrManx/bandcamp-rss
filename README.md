@@ -4,8 +4,8 @@ This repository automatically generates RSS feeds from a list of artist pages, m
 
 ## How It Works
 
-1. You add artist page URLs to the `artists.json` file
-2. GitHub Actions automatically runs on a schedule to fetch the latest releases
+1. You add artist Bandcamp URLs to a .json file in the /artists/ folder
+2. GitHub Actions automatically runs on a schedule to fetch the latest releases (skips future releases)
 3. An RSS feed is generated and published to GitHub Pages
 4. Subscribe to the RSS feed in your favorite reader to get updates
 
