@@ -29,28 +29,25 @@ jobs:
           rm -f package-lock.json
           npm install --no-package-lock
       
+      - name: List files in directory
+        run: |
+          echo "Repository contents:"
+          ls -la
+      
       - name: Generate RSS feed
         run: npm start
       
-      - name: Debug output directory
+      - name: Check output files
         run: |
-          echo "Checking if dist directory exists:"
-          ls -la
+          echo "Output directory (dist) contents:"
+          ls -la dist
           
-          if [ -d "dist" ]; then
-            echo "Contents of dist directory:"
-            ls -la dist
-            
-            if [ -f "dist/artists-feed.xml" ]; then
-              echo "artists-feed.xml file exists!"
-              echo "File size: $(stat -c%s dist/artists-feed.xml) bytes"
-              echo "First 100 characters of the file:"
-              head -c 100 dist/artists-feed.xml
-            else
-              echo "artists-feed.xml not found!"
-            fi
+          if [ -f "dist/artists-feed.xml" ]; then
+            echo "artists-feed.xml exists and has size $(du -h dist/artists-feed.xml | cut -f1)"
+            echo "First 200 characters:"
+            head -c 200 dist/artists-feed.xml
           else
-            echo "dist directory not found!"
+            echo "ERROR: artists-feed.xml was not generated!"
           fi
       
       - name: Deploy to GitHub Pages
@@ -62,3 +59,8 @@ jobs:
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: 'Update RSS feed'
+      
+      - name: Deployment status
+        run: |
+          echo "Deployment completed! Your feed should be available at:"
+          echo "https://$(echo $GITHUB_REPOSITORY | cut -d'/' -f1).github.io/$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)/artists-feed.xml"

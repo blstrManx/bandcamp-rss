@@ -2,10 +2,10 @@
   "name": "artist-rss-feed-generator",
   "version": "1.0.0",
   "description": "Generate RSS feeds from artist pages and publish to GitHub Pages",
-  "main": "src/index.js",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
