@@ -395,14 +395,8 @@ async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, re
   
   const htmlPath = path.join(outputFeedDir, `${feedId}.html`);
   
-  // Calculate the correct back link path based on directory depth
+  // Link directly to the bandcamp-rss repository
   let backLink = "/bandcamp-rss/";
-  
-  // If we're in a nested directory, we need to add more '../' to get back to root
-  if (feedDirectory !== '.') {
-    const depth = feedDirectory.split(path.sep).length;
-    backLink = Array(depth).fill('..').join('/') + '/index.html';
-  }
   
   // Create a simple HTML page for this feed
   const feedHtml = `<!DOCTYPE html>

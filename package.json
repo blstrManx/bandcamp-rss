@@ -1,5 +1,5 @@
 {
-  "name": "artist-rss-feed-generator",
+  "name": "bandcamp-rss-feed-generator",
   "version": "1.0.0",
   "description": "Generate RSS feeds for artist releases from Bandcamp and other platforms",
   "main": "index.js",
