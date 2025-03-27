@@ -408,30 +408,40 @@ async function generateFeed() {
         
         // Add each real release to the feed
         for (const release of realReleases) {
-          // Create enhanced description with embedded image and properly escape HTML entities
-          let safeDescription = (release.description || `New release by ${artist.name}`)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&apos;');
-          
-          let safeTitle = (artist.name + ' - ' + release.title)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&apos;');
-          
-          let safeImageUrl = '';
-          if (release.image) {
-            safeImageUrl = release.image
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&apos;');
-          }
+			// Create enhanced description with embedded image and properly escape HTML entities
+			let safeDescription = (release.description || `New release by ${artist.name}`)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&apos;');
+
+			let safeTitle = (artist.name + ' - ' + release.title)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&apos;');
+
+			// When preparing URLs, make sure to escape equals signs
+			let safeUrl = release.url
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&apos;')
+				.replace(/=/g, '%3D'); // Replace equals signs with %3D (URL encoding)
+
+			let safeImageUrl = '';
+			if (release.image) {
+				safeImageUrl = release.image
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&apos;')
+				.replace(/=/g, '%3D'); // Replace equals signs with %3D
+			}
           
           const enhancedDescription = release.image 
             ? `<p><img src="${safeImageUrl}" alt="${safeTitle}" style="max-width:100%;"></p>
@@ -440,23 +450,23 @@ async function generateFeed() {
           
           try {
             feed.addItem({
-              title: `${artist.name} - ${release.title}`,
-              id: release.url,
-              link: release.url,
-              description: enhancedDescription,
-              author: [
-                {
-                  name: artist.name,
-                  link: artist.url
-                }
-              ],
-              date: release.date || new Date(),
-              image: release.image ? {
-                url: release.image,
-                title: `${artist.name} - ${release.title}`,
-                link: release.url
-              } : undefined
-            });
+			  title: `${artist.name} - ${release.title}`,
+			  id: safeUrl,
+			  link: safeUrl,
+			  description: enhancedDescription,
+			  author: [
+				{
+				  name: artist.name,
+				  link: artist.url.replace(/&/g, '&amp;').replace(/=/g, '%3D')
+				}
+			  ],
+			  date: release.date || new Date(),
+			  image: release.image ? {
+				url: safeImageUrl,
+				title: safeTitle,
+				link: safeUrl
+			  } : undefined
+			});
           } catch (e) {
             console.error(`Error adding feed item ${artist.name} - ${release.title}: ${e.message}`);
           }
