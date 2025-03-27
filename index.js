@@ -54,9 +54,9 @@ async function scrapeBandcamp(url) {
     const $ = cheerio.load(data);
     const releases = [];
 
-    // Get album/track items from the page - limit to 5 most recent
+    // Get album/track items from the page - limit to 2 most recent
     const albumItems = $('.music-grid-item');
-    const itemCount = Math.min(albumItems.length, 5); // Only process the first 5 items
+    const itemCount = Math.min(albumItems.length, 2); // Only process the first 2 items
     
     console.log(`Found ${albumItems.length} releases, processing first ${itemCount}`);
     
@@ -101,27 +101,61 @@ async function scrapeBandcamp(url) {
         // If we couldn't find date in JSON, look for it in the page content
         if (!foundDate) {
           // Look for the release date in the album credits section
-          const creditsText = albumPage('.tralbumData.tralbum-credits').text();
-          const releaseDateMatch = creditsText.match(/released\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})/i);
+          const creditsElement = albumPage('.tralbumData.tralbum-credits');
+          if (creditsElement.length) {
+            const creditsText = creditsElement.text();
+            console.log(`Credits text found: "${creditsText}"`);
+            
+            // Look specifically for "released Month Day, Year" format
+            const releaseDateMatch = creditsText.match(/released\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
+            
+            if (releaseDateMatch && releaseDateMatch[1]) {
+              console.log(`Release date match found: "${releaseDateMatch[1]}"`);
+              releaseDate = new Date(releaseDateMatch[1]);
+              console.log(`Parsed date: ${releaseDate.toISOString()}`);
+              foundDate = true;
+            }
+          }
           
-          if (releaseDateMatch && releaseDateMatch[1]) {
-            releaseDate = new Date(releaseDateMatch[1]);
-          } else {
+          // If still not found, try other selectors
+          if (!foundDate) {
             // Try another common format
-            const altDateMatch = albumPage('.tralbumData.tralbum-about-release-date').text().trim();
-            if (altDateMatch) {
-              releaseDate = new Date(altDateMatch);
+            const altDateElement = albumPage('.tralbumData.tralbum-about-release-date');
+            if (altDateElement.length) {
+              const altDateMatch = altDateElement.text().trim();
+              if (altDateMatch) {
+                releaseDate = new Date(altDateMatch);
+                foundDate = true;
+              }
             }
           }
         }
         
         // If still no date found, try another selector specific to Bandcamp
-        if (!releaseDate || isNaN(releaseDate.getTime())) {
+        if (!foundDate || !releaseDate || isNaN(releaseDate.getTime())) {
+          // Try meta tag
           const dateElement = albumPage('meta[itemprop="datePublished"]');
           if (dateElement.length) {
             const dateContent = dateElement.attr('content');
             if (dateContent) {
+              console.log(`Found date in meta tag: ${dateContent}`);
               releaseDate = new Date(dateContent);
+              foundDate = true;
+            }
+          }
+          
+          // As a last resort, try to find any text containing "released" followed by a date-like string
+          if (!foundDate) {
+            // Look through the entire page for any text containing "released" pattern
+            const pageText = albumPage('body').text();
+            const allReleasedMatches = pageText.match(/released\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi);
+            
+            if (allReleasedMatches && allReleasedMatches.length > 0) {
+              // Use the first match
+              const dateText = allReleasedMatches[0].replace(/released\s+/i, '');
+              console.log(`Found release date in page text: ${dateText}`);
+              releaseDate = new Date(dateText);
+              foundDate = true;
             }
           }
         }
