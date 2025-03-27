@@ -635,19 +635,6 @@ async function generateFeedForFile(jsonFile, fullPath) {
 	  }
 	}
     
-	else {
-      // Generate the RSS feed XML
-      const rssOutput = feed.rss2();
-      
-      // Write the feed to the output directory
-      await fs.writeFile(outputFile, rssOutput);
-    }
-    
-    console.log(`Feed written to ${outputFile}`);
-    
-    // Create a feed-specific HTML page
-    await createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, totalReleaseCount);
-    
   } catch (error) {
     console.error(`Error generating feed for ${jsonFile}:`, error);
     throw error;
