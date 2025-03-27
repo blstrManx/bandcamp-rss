@@ -26,22 +26,27 @@ This allows GitHub Actions to create and push to the gh-pages branch.
 
 ### 3. Customize your artist list
 
-Edit the `artists.json` file with your preferred artists:
+Add a json file to the artists folder with this formatting:
 
 ```json
 {
-  "artists": [
-    {
-      "name": "Artist Name",
-      "url": "https://example.com/artist/page"
-    },
-    {
-      "name": "Another Artist",
-      "url": "https://example.com/another/artist"
-    }
-  ]
+	"title": "Artists",
+	"description": "description",
+	"artists": [
+	{
+	  "name": "HARDCORE TANO*C",
+	  "url": "https://tanoc.bandcamp.com/music",
+	  "maxReleases": 3
+	},
+	{
+	  "name": "Warp Records",
+	  "url": "https://warprecords.bandcamp.com/music"
+	}
+	]
 }
 ```
+
+Use as many json files as you want seperate feeds. Include maxReleases if you want to specify an amount to check. The default is 2, feel free to change it.
 
 ### 4. Run the GitHub Action
 
@@ -49,6 +54,8 @@ Edit the `artists.json` file with your preferred artists:
 2. Find the "Generate RSS Feed" workflow
 3. Click "Run workflow"
 4. Wait for the workflow to complete (this creates the gh-pages branch)
+
+Note: the workflow runs once per day at midnight GMT automatically.
 
 ### 5. Enable GitHub Pages
 
@@ -58,28 +65,28 @@ Edit the `artists.json` file with your preferred artists:
 4. For the branch, select "gh-pages" and "/ (root)"
 5. Save the changes
 
-### 6. Access your RSS feed
+### 6. Access your RSS feeds
 
-Once GitHub Pages is enabled, your RSS feed will be available at:
+Once GitHub Pages is enabled, your feeds will be available at:
 
 ```
-https://[your-username].github.io/[repository-name]/artists-feed.xml
+https://[your-username].github.io/[repository-name]/
 ```
 
-You can then add this URL to your RSS reader of choice.
+Navigate through your feeds and copy your xml file from here.
 
 ## Current Features
 
 - Automatic feed generation on a daily schedule
-- Displays a list of tracked artists on the landing page
-- RSS feed compatible with all major feed readers
+- Organize your artists into multiple feeds
+- RSS feeds compatible with all major feed readers
 
 ## Technical Details
 
 ### Project Structure
 
 - `index.js` - Main script that generates the RSS feed and HTML page
-- `artists.json` - Input file containing your artist links
+- `artists/*.json` - Input files containing your artist links, can be named however you like
 - `.github/workflows/generate-feed.yml` - GitHub Actions workflow for automation
 - `dist/` - Output directory for generated files (created during build)
 
@@ -119,7 +126,7 @@ If you see a 404 error when trying to access your site:
 
 ## Soundcloud and Spotify
 
-Spotify requires an API key, and I don't have premium, so that's not happening. If I can get Soundcloud to work, I'll update the repo. Still quite unlikely, imo.
+Spotify seems like it would be quite complicated to get working. It's unlikely. Soundcloud support is almost there, but there is no ETA.
 
 ## License
 
