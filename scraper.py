@@ -66,14 +66,20 @@ def generate_rss():
     fg.rss_file(RSS_FILE)
     print(f"RSS feed generated: {RSS_FILE}")
 
+import os
+
 if __name__ == "__main__":
-    print("Options: \n1. Add a new artist\n2. Generate RSS feed")
-    choice = input("Enter your choice: ")
-    
-    if choice == "1":
-        artist_url = input("Enter Bandcamp artist URL: ")
-        add_artist(artist_url)
-    elif choice == "2":
+    if os.getenv("GITHUB_ACTIONS"):
+        print("Running in GitHub Actions: Generating RSS feed automatically...")
         generate_rss()
     else:
-        print("Invalid choice.")
+        print("Options: \n1. Add a new artist\n2. Generate RSS feed")
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            artist_url = input("Enter Bandcamp artist URL: ")
+            add_artist(artist_url)
+        elif choice == "2":
+            generate_rss()
+        else:
+            print("Invalid choice.")
