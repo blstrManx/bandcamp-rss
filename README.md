@@ -30,8 +30,8 @@ Add a json file to the artists folder with this formatting:
 
 ```json
 {
-	"title": "Artists",
-	"description": "description",
+	"title": "My cool EDM feed",
+	"description": "all of my favorite EDM labels",
 	"artists": [
 	{
 	  "name": "HARDCORE TANO*C",
