@@ -1,4 +1,4 @@
-# Artist RSS Feed Generator
+# Bandcamp RSS Feed Generator
 
 This repository automatically generates RSS feeds from a list of artist pages, making it easy to follow new releases from your favorite artists.
 
@@ -71,7 +71,6 @@ You can then add this URL to your RSS reader of choice.
 ## Current Features
 
 - Automatic feed generation on a daily schedule
-- Works with various artist page formats
 - Displays a list of tracked artists on the landing page
 - RSS feed compatible with all major feed readers
 
@@ -121,6 +120,10 @@ If you see a 404 error when trying to access your site:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Todo
+
+Soundcloud and Spotify support is in an early state. Spotify support is unlikely.
 
 ## Contributing
 
