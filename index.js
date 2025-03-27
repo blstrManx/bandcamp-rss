@@ -50,7 +50,7 @@ async function scrapeArtistReleases(artist) {
  * @param {number} maxReleases - Maximum number of releases to scrape (from artist config)
  * @returns {Promise<Array>} - Array of release objects
  */
-async function scrapeBandcamp(url, maxReleases = 5) {
+async function scrapeBandcamp(url, maxReleases = 2) {
   try {
     // First fetch the artist page to get all album links
     const { data } = await axios.get(url);
@@ -240,11 +240,6 @@ async function scrapeBandcamp(url, maxReleases = 5) {
   }
 }
 
-/**
- * Scrape releases from a SoundCloud artist page
- * @param {string} url - SoundCloud artist URL
- * @returns {Promise<Array>} - Array of release objects
- */
 /**
  * Scrape releases from a SoundCloud artist page
  * @param {string} url - SoundCloud artist URL
@@ -443,24 +438,28 @@ async function generateFeed() {
                <p>${safeDescription}</p>`
             : safeDescription;
           
-          feed.addItem({
-            title: `${artist.name} - ${release.title}`,
-            id: release.url,
-            link: release.url,
-            description: enhancedDescription,
-            author: [
-              {
-                name: artist.name,
-                link: artist.url
-              }
-            ],
-            date: release.date || new Date(),
-            image: release.image ? {
-              url: release.image,
+          try {
+            feed.addItem({
               title: `${artist.name} - ${release.title}`,
-              link: release.url
-            } : undefined
-          });
+              id: release.url,
+              link: release.url,
+              description: enhancedDescription,
+              author: [
+                {
+                  name: artist.name,
+                  link: artist.url
+                }
+              ],
+              date: release.date || new Date(),
+              image: release.image ? {
+                url: release.image,
+                title: `${artist.name} - ${release.title}`,
+                link: release.url
+              } : undefined
+            });
+          } catch (e) {
+            console.error(`Error adding feed item ${artist.name} - ${release.title}: ${e.message}`);
+          }
         }
         
         const filteredCount = releases.length - realReleases.length;
@@ -472,78 +471,8 @@ async function generateFeed() {
       }
     }
 
-	console.log(`Total real releases count: ${totalReleaseCount}`);
-
-	// Check the filtering logic that's handling real releases
-	// Update the filter function to be more detailed in logging:
-
-	const realReleases = releases.filter(release => {
-	  // Log every release that's being evaluated
-	  console.log(`Evaluating release: "${release.title}" (URL: ${release.url})`);
-	  
-	  // Skip releases with "Sample" or "Example" in title
-	  if (
-		release.title.includes("Sample") || 
-		release.title.includes("Error Reading") || 
-		release.title.includes("Example") || 
-		release.title.includes("Demo")
-	  ) {
-		console.log(`  - Filtered out: Has sample/example keyword in title`);
-		return false;
-	  }
-	  
-	  // Skip releases with example URLs
-	  if (
-		release.url.includes("example.com") || 
-		!release.url.includes(".")
-	  ) {
-		console.log(`  - Filtered out: Has example URL or invalid URL`);
-		return false;
-	  }
-	  
-	  // Additional check: Log release date
-	  console.log(`  - Release date: ${release.date}`);
-	  
-	  // Make sure date is valid
-	  if (!release.date || isNaN(release.date.getTime())) {
-		console.log(`  - Filtered out: Invalid date`);
-		return false;
-	  }
-	  
-	  console.log(`  - Keeping this release`);
-	  return true;
-	});
-
-	// Add logging after adding items to the feed
-	console.log(`Total items added to feed: ${feed.items.length}`);
-
-	// Alternative fix: Make sure the feed item is added correctly
-	// You could modify the feed.addItem call to be more robust:
-
-	try {
-	  feed.addItem({
-		title: `${artist.name} - ${release.title}`,
-		id: release.url,
-		link: release.url,
-		description: safeDescription, // Use the non-HTML version for safer output
-		content: enhancedDescription, // Put the HTML in content instead
-		author: [
-		  {
-			name: artist.name,
-			link: artist.url
-		  }
-		],
-		date: release.date || new Date(),
-		image: release.image ? {
-		  url: safeImageUrl,
-		  title: safeTitle,
-		  link: release.url
-		} : undefined
-	  });
-	  console.log(`Successfully added item: ${artist.name} - ${release.title}`);
-	} catch (e) {
-	  console.error(`Error adding feed item ${artist.name} - ${release.title}: ${e.message}`);
-	}
+    console.log(`Total real releases count: ${totalReleaseCount}`);
+    console.log(`Total items added to feed: ${feed.items ? feed.items.length : 0}`);
 
     // Only generate feed if we have real content
     if (totalReleaseCount === 0) {
@@ -672,64 +601,50 @@ async function generateFeed() {
     console.log(`Index page written to ${path.join(outputDir, 'index.html')}`);
 
   } catch (error) {
-	  console.error('Error generating feed:', error);
-	  // Create minimal output files even if there's an error
-	  try {
-		// Notice: no reference to "releases" variable here
-		
-		// Create a minimal RSS feed
-		const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
-	<rss version="2.0">
-	  <channel>
-		<title>Artist Releases RSS Feed</title>
-		<description>Latest releases from your favorite artists</description>
-		<link>https://github.com/user/artist-rss-feed-generator</link>
-		<lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-		<item>
-		  <title>Error Generating Feed</title>
-		  <link>https://github.com/user/artist-rss-feed-generator</link>
-		  <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
-		  <pubDate>${new Date().toUTCString()}</pubDate>
-		  <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
-		</item>
-	  </channel>
-	</rss>`;
-		
-		await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
-		
-		// Create a minimal index.html
-		const minimalHtml = `<!DOCTYPE html>
-	<html lang="en">
-	<head>
-	  <meta charset="UTF-8">
-	  <title>Artist RSS Feed (Error)</title>
-	</head>
-	<body>
-	  <h1>Error Generating Feed</h1>
-	  <p>There was an error generating the artist RSS feed. Please check the GitHub Actions logs.</p>
-	  <p>A minimal feed is still available at <a href="./artists-feed.xml">artists-feed.xml</a></p>
-	</body>
-	</html>`;
-		
-		await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
-		console.log('Created minimal output files due to error');
-	  } catch (e) {
-		console.error('Failed to create minimal output files:', e);
-	  }
-	}
+    console.error('Error generating feed:', error);
+    // Create minimal output files even if there's an error
+    try {
+      // Create a minimal RSS feed
+      const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Artist Releases RSS Feed</title>
+    <description>Latest releases from your favorite artists</description>
+    <link>https://github.com/user/artist-rss-feed-generator</link>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <item>
+      <title>Error Generating Feed</title>
+      <link>https://github.com/user/artist-rss-feed-generator</link>
+      <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
+      <pubDate>${new Date().toUTCString()}</pubDate>
+      <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
+    </item>
+  </channel>
+</rss>`;
+      
+      await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
+      
+      // Create a minimal index.html
+      const minimalHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Artist RSS Feed (Error)</title>
+</head>
+<body>
+  <h1>Error Generating Feed</h1>
+  <p>There was an error generating the artist RSS feed. Please check the GitHub Actions logs.</p>
+  <p>A minimal feed is still available at <a href="./artists-feed.xml">artists-feed.xml</a></p>
+</body>
+</html>`;
+      
+      await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
+      console.log('Created minimal output files due to error');
+    } catch (e) {
+      console.error('Failed to create minimal output files:', e);
+    }
+  }
 }
-
-// At the end of your index.js file, after generateFeed():
-// Add these lines to check for balanced braces
-
-let braceCount = 0;
-let fileContents = fs.readFileSync('./index.js', 'utf8');
-for (let i = 0; i < fileContents.length; i++) {
-  if (fileContents[i] === '{') braceCount++;
-  if (fileContents[i] === '}') braceCount--;
-}
-console.log(`Brace balance check: ${braceCount === 0 ? 'OK' : 'FAILED! Missing braces!'}`);
-
 
 // Run the feed generator
 generateFeed();
