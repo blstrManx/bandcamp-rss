@@ -27,7 +27,7 @@ jobs:
         run: |
           pip install requests beautifulsoup4 feedgen  # Install dependencies
 
-      - name: Debug: List artist URLs
+      - name: Debug List artist URLs
         run: cat artists.json  # Print the contents of artists.json to check the artist URLs
 
       - name: Run RSS generator
