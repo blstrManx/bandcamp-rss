@@ -326,7 +326,7 @@ async function generateFeed() {
 
     // Create a new feed
     const feed = new Feed({
-      title: "Artist Releases RSS Feed",
+      title: "Bandcamp Releases RSS Feed",
       description: "Latest releases from your favorite artists",
       id: "https://github.com/user/artist-rss-feed-generator",
       link: "https://github.com/user/artist-rss-feed-generator",
