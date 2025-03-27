@@ -124,4 +124,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project is made mainly for personal use and is unlikely to be updated past any features I see fit. Feel free to submit a pull request though, if I see something cool, who knows.
