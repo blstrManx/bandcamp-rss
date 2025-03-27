@@ -3,52 +3,43 @@
     {
       "name": "HARDCORE TANO*C",
       "url": "https://tanoc.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
+	  "maxReleases": 3
     },
     {
       "name": "International Anthem Recording Company",
       "url": "https://intlanthem.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Hubro",
       "url": "https://hubromusic.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Warp Records",
       "url": "https://warprecords.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Brainfeeder",
       "url": "https://brainfeeder.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Kranky Records",
       "url": "https://kranky.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "bbe",
       "url": "https://bbemusic.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Underscores",
       "url": "https://underscores.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Tsubi Club",
       "url": "https://tsubiclub.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     },
 	{
       "name": "Internet Girl",
       "url": "https://internetgirl.bandcamp.com/music"
-	  // No maxReleases specified, will use default (2)
     }
   ]
 }

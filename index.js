@@ -672,13 +672,13 @@ async function generateFeed() {
     console.log(`Index page written to ${path.join(outputDir, 'index.html')}`);
 
   } catch (error) {
-    console.error('Error generating feed:', error);
-    // Create minimal output files even if there's an error
-    try {
-      // Note: don't reference 'releases' here as it's out of scope
-      
-      // Create a minimal RSS feed
-      const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
+  console.error('Error generating feed:', error);
+  // Create minimal output files even if there's an error
+  try {
+    // Notice: no reference to "releases" variable here
+    
+    // Create a minimal RSS feed
+    const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
   <channel>
     <title>Artist Releases RSS Feed</title>
@@ -694,11 +694,11 @@ async function generateFeed() {
     </item>
   </channel>
 </rss>`;
-      
-      await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
-      
-      // Create a minimal index.html
-      const minimalHtml = `<!DOCTYPE html>
+    
+    await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
+    
+    // Create a minimal index.html
+    const minimalHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -710,12 +710,11 @@ async function generateFeed() {
   <p>A minimal feed is still available at <a href="./artists-feed.xml">artists-feed.xml</a></p>
 </body>
 </html>`;
-      
-      await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
-      console.log('Created minimal output files due to error');
-    } catch (e) {
-      console.error('Failed to create minimal output files:', e);
-    }
+    
+    await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
+    console.log('Created minimal output files due to error');
+  } catch (e) {
+    console.error('Failed to create minimal output files:', e);
   }
 }
 
