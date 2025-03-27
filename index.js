@@ -3,7 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Feed } from 'feed';
 import axios from 'axios';
-import * as cheerio from 'cheerio'; // Fixed import syntax for cheerio
+import * as cheerio from 'cheerio';
+import glob from 'glob';
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url);
@@ -12,333 +13,32 @@ const __dirname = path.dirname(__filename);
 // Path to the output directory (where GitHub Pages will serve from)
 const outputDir = path.join(__dirname, 'dist');
 
+// Path to the artists directory
+const artistsDir = path.join(__dirname, 'artists');
+
 // Ensure the output directory exists
 fs.ensureDirSync(outputDir);
 
-/**
- * Scrape releases from an artist page
- * @param {Object} artist - Artist object with name, url, and optionally maxReleases
- * @returns {Promise<Array>} - Array of release objects
- */
-async function scrapeArtistReleases(artist) {
-  const { url } = artist;
-  // Get the maximum number of releases to scrape from artist object or use default
-  const maxReleases = artist.maxReleases || 2; // Default to 2 if not specified
-  
-  // Determine which scraper to use based on the URL
-  if (url.includes('bandcamp.com')) {
-    return scrapeBandcamp(url, maxReleases);
-  } else if (url.includes('soundcloud.com')) {
-    return scrapeSoundcloud(url, maxReleases);
-  } else if (url.includes('spotify.com')) {
-    return scrapeSpotify(url, maxReleases);
-  } else {
-    // For demo purposes, return a sample release
-    return [{
-      title: "Sample Release",
-      url: "https://example.com/sample-release",
-      date: new Date(),
-      image: "",
-      description: `Demo release for ${artist.name}`
-    }];
-  }
-}
+// Ensure the artists directory exists
+fs.ensureDirSync(artistsDir);
 
 /**
- * Scrape releases from a Bandcamp artist page
- * @param {string} url - Bandcamp artist URL
- * @param {number} maxReleases - Maximum number of releases to scrape (from artist config)
- * @returns {Promise<Array>} - Array of release objects
+ * Processes all artist JSON files in the artists directory
+ * @returns {Promise<void>}
  */
-async function scrapeBandcamp(url, maxReleases = 2) {
+async function processArtistFiles() {
   try {
-    // First fetch the artist page to get all album links
-    const { data } = await axios.get(url);
-    const $ = cheerio.load(data);
-    const releases = [];
-
-    // Get album/track items from the page - limit to maxReleases
-    const albumItems = $('.music-grid-item');
-    const itemCount = Math.min(albumItems.length, maxReleases);
+    // Find all .json files in the artists directory and its subdirectories
+    const jsonFiles = glob.sync('**/*.json', { cwd: artistsDir });
     
-    console.log(`Found ${albumItems.length} releases, processing first ${itemCount} (maxReleases: ${maxReleases})`);
-    
-    for (let i = 0; i < itemCount; i++) {
-      const el = albumItems[i];
-      const albumUrl = $(el).find('a').attr('href');
-      const title = $(el).find('.title').text().trim();
-      const imageUrl = $(el).find('img').attr('src') || '';
-      const artistOverride = $(el).find('.artist-override').text().trim();
+    if (jsonFiles.length === 0) {
+      console.log('No artist JSON files found. Creating a default one...');
       
-      // Make sure the URL is absolute
-      const fullAlbumUrl = albumUrl.startsWith('http') ? albumUrl : 
-                         (albumUrl.startsWith('/') ? new URL(albumUrl, url).toString() : `${url}${albumUrl}`);
-      
-      try {
-        // Fetch the album page to get detailed info
-        console.log(`Fetching album details from: ${fullAlbumUrl}`);
-        const { data: albumData } = await axios.get(fullAlbumUrl);
-        const albumPage = cheerio.load(albumData);
-        
-        // Look for the release date in the album metadata
-        let releaseDate;
-        
-        // Try to find the release date in the tralbum data (embedded JSON)
-        const scriptTags = albumPage('script[type="application/ld+json"]');
-        let foundDate = false;
-        
-        scriptTags.each((_, script) => {
-          if (foundDate) return;
-          
-          try {
-            const jsonData = JSON.parse(albumPage(script).html());
-            if (jsonData && jsonData.datePublished) {
-              releaseDate = new Date(jsonData.datePublished);
-              foundDate = true;
-            }
-          } catch (e) {
-            // Continue if this script tag doesn't contain valid JSON
-          }
-        });
-        
-        // If we couldn't find date in JSON, look for it in the page content
-        if (!foundDate) {
-          // Look for the release date in the album credits section
-          const creditsElement = albumPage('.tralbumData.tralbum-credits');
-          if (creditsElement.length) {
-            const creditsText = creditsElement.text();
-            console.log(`Credits text found: "${creditsText}"`);
-            
-            // Look specifically for "released Month Day, Year" format
-            const releaseDateMatch = creditsText.match(/released\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-            
-            if (releaseDateMatch && releaseDateMatch[1]) {
-              console.log(`Release date match found: "${releaseDateMatch[1]}"`);
-              releaseDate = new Date(releaseDateMatch[1]);
-              console.log(`Parsed date: ${releaseDate.toISOString()}`);
-              foundDate = true;
-            }
-          }
-          
-          // If still not found, try other selectors
-          if (!foundDate) {
-            // Try another common format
-            const altDateElement = albumPage('.tralbumData.tralbum-about-release-date');
-            if (altDateElement.length) {
-              const altDateMatch = altDateElement.text().trim();
-              if (altDateMatch) {
-                releaseDate = new Date(altDateMatch);
-                foundDate = true;
-              }
-            }
-          }
-        }
-        
-        // If still no date found, try another selector specific to Bandcamp
-        if (!foundDate || !releaseDate || isNaN(releaseDate.getTime())) {
-          // Try meta tag
-          const dateElement = albumPage('meta[itemprop="datePublished"]');
-          if (dateElement.length) {
-            const dateContent = dateElement.attr('content');
-            if (dateContent) {
-              console.log(`Found date in meta tag: ${dateContent}`);
-              releaseDate = new Date(dateContent);
-              foundDate = true;
-            }
-          }
-          
-          // As a last resort, try to find any text containing "released" followed by a date-like string
-          if (!foundDate) {
-            // Look through the entire page for any text containing "released" pattern
-            const pageText = albumPage('body').text();
-            const allReleasedMatches = pageText.match(/released\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/gi);
-            
-            if (allReleasedMatches && allReleasedMatches.length > 0) {
-              // Use the first match
-              const dateText = allReleasedMatches[0].replace(/released\s+/i, '');
-              console.log(`Found release date in page text: ${dateText}`);
-              releaseDate = new Date(dateText);
-              foundDate = true;
-            }
-          }
-        }
-
-        // Check for "Album will be released on..." text patterns indicating future releases
-        const preOrderText = albumPage('body').text().match(/will be released on|releases on|available on|releases \w+ \d{1,2},? \d{4}/i);
-        const isPreOrder = !!preOrderText;
-        if (isPreOrder) {
-          console.log(`Found pre-order indication: "${preOrderText[0]}"`);
-        }
-        
-        // Set description (might include album notes if available)
-        let description = `New release by ${artistOverride || 'artist'}`;
-        const albumNotes = albumPage('.tralbum-about').text().trim();
-        if (albumNotes) {
-          description = albumNotes.length > 300 ? 
-                      albumNotes.substring(0, 297) + '...' : 
-                      albumNotes;
-        }
-        
-        // If we still don't have a date, use current date as fallback
-        if (!releaseDate || isNaN(releaseDate.getTime())) {
-          console.log(`Couldn't find release date for: ${title}. Using current date.`);
-          releaseDate = new Date();
-        }
-        
-        // Check if the release date is in the future
-        const now = new Date();
-        const isFutureRelease = releaseDate > now;
-        
-        if (isFutureRelease) {
-          console.log(`Skipping future release: ${title} (Release date: ${releaseDate.toISOString()})`);
-          continue; // Skip this release and move to the next one
-        }
-        
-        // If we got here, it's not a future release, so add it
-        releases.push({
-          title,
-          url: fullAlbumUrl,
-          date: releaseDate,
-          image: imageUrl,
-          description
-        });
-        
-      } catch (albumError) {
-        console.error(`Error fetching album details for ${title}: ${albumError.message}`);
-        // Add with basic info and current date if album page fetch fails
-        releases.push({
-          title,
-          url: fullAlbumUrl,
-          date: new Date(),
-          image: imageUrl,
-          description: `New release by ${artistOverride || 'artist'}`
-        });
-      }
-      
-      // Add a small delay to avoid overloading the server
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    // Sort the releases by date, newest first
-    releases.sort((a, b) => b.date - a.date);
-
-    return releases.length > 0 ? releases : [{
-      title: "Sample Bandcamp Release",
-      url: url,
-      date: new Date(),
-      image: "",
-      description: "Demo release (no actual releases found)"
-    }];
-  } catch (error) {
-    console.error(`Error scraping Bandcamp: ${error.message}`);
-    return [{
-      title: "Error Reading Bandcamp",
-      url: url,
-      date: new Date(),
-      description: "Could not retrieve releases"
-    }];
-  }
-}
-
-/**
- * Scrape releases from a SoundCloud artist page
- * @param {string} url - SoundCloud artist URL
- * @param {number} maxReleases - Maximum number of releases to scrape
- * @returns {Promise<Array>} - Array of release objects
- */
-async function scrapeSoundcloud(url, maxReleases = 2) {
-  try {
-    const { data } = await axios.get(url);
-    const $ = cheerio.load(data);
-    const releases = [];
-
-    // SoundCloud-specific selectors for releases
-    const soundItems = $('.soundList__item');
-    console.log(`Found ${soundItems.length} SoundCloud items, processing up to ${maxReleases}`);
-    
-    let count = 0;
-    soundItems.each((i, el) => {
-      // Stop if we've reached the maximum
-      if (count >= maxReleases) return false;
-      
-      const title = $(el).find('.soundTitle__title').text().trim();
-      const releaseUrl = $(el).find('.soundTitle__title').attr('href');
-      const imageUrl = $(el).find('.image__full').attr('src') || '';
-      const dateText = $(el).find('.soundTitle__uploadTime').text().trim();
-      
-      // Parse date or use current date if not found
-      let date;
-      try {
-        if (dateText) {
-          date = new Date(dateText);
-        } else {
-          date = new Date();
-        }
-      } catch (e) {
-        date = new Date();
-      }
-
-      if (title && releaseUrl) {
-        releases.push({
-          title,
-          url: releaseUrl.startsWith('http') ? releaseUrl : `https://soundcloud.com${releaseUrl}`,
-          date,
-          image: imageUrl,
-          description: `New track on SoundCloud`
-        });
-        count++;
-      }
-    });
-
-    return releases.length > 0 ? releases : [{
-      title: "Sample SoundCloud Release",
-      url: url,
-      date: new Date(),
-      image: "",
-      description: "Demo release (no actual releases found)"
-    }];
-  } catch (error) {
-    console.error(`Error scraping SoundCloud: ${error.message}`);
-    return [{
-      title: "Error Reading SoundCloud",
-      url: url,
-      date: new Date(),
-      description: "Could not retrieve releases"
-    }];
-  }
-}
-
-/**
- * Scrape releases from a Spotify artist page
- * @param {string} url - Spotify artist URL
- * @param {number} maxReleases - Maximum number of releases to scrape
- * @returns {Promise<Array>} - Array of release objects
- */
-async function scrapeSpotify(url, maxReleases = 2) {
-  console.log(`Spotify scraping requested with maxReleases: ${maxReleases}`);
-  // For demo purposes, return a sample release
-  return [{
-    title: "Sample Spotify Release",
-    url: url,
-    date: new Date(),
-    image: "",
-    description: "Demo release (Spotify requires authentication)"
-  }];
-}
-
-async function generateFeed() {
-  try {
-    // Read the artists.json file
-    const artistsFile = path.join(__dirname, 'artists.json');
-    console.log(`Reading artists from: ${artistsFile}`);
-    
-    let artistsData;
-    try {
-      artistsData = await fs.readJson(artistsFile);
-    } catch (error) {
-      console.error(`Error reading artists.json: ${error.message}`);
-      // Create a default artists list for demo
-      artistsData = {
+      // Create a default file if none exist
+      const defaultArtistsFile = path.join(artistsDir, 'default.json');
+      const defaultArtists = {
+        title: "Default Artist Feed",
+        description: "Default feed for artists",
         artists: [
           {
             name: "Example Artist",
@@ -346,32 +46,77 @@ async function generateFeed() {
           }
         ]
       };
+      
+      await fs.writeJson(defaultArtistsFile, defaultArtists, { spaces: 2 });
+      console.log(`Created default artists file at: ${defaultArtistsFile}`);
+      jsonFiles.push('default.json');
     }
     
-    const artists = artistsData.artists || [];
-
-    if (artists.length === 0) {
-      console.log('No artists found in artists.json, using a demo artist');
-      artists.push({
-        name: "Demo Artist",
-        url: "https://example.com/demo"
-      });
+    console.log(`Found ${jsonFiles.length} artist JSON file(s) to process`);
+    
+    // Process each JSON file and generate a feed for it
+    for (const jsonFile of jsonFiles) {
+      const fullPath = path.join(artistsDir, jsonFile);
+      console.log(`Processing artist file: ${fullPath}`);
+      
+      try {
+        await generateFeedForFile(jsonFile, fullPath);
+      } catch (error) {
+        console.error(`Error processing ${jsonFile}: ${error.message}`);
+      }
     }
+    
+    // Create an index page that links to all feeds
+    await createIndexPage(jsonFiles);
+    
+  } catch (error) {
+    console.error('Error processing artist files:', error);
+  }
+}
 
+/**
+ * Generates a feed for a specific artist JSON file
+ * @param {string} jsonFile - Relative path to the JSON file within the artists directory
+ * @param {string} fullPath - Full path to the JSON file
+ * @returns {Promise<void>}
+ */
+async function generateFeedForFile(jsonFile, fullPath) {
+  try {
+    // Determine the output file name based on the JSON file path
+    const feedId = path.basename(jsonFile, '.json');
+    const feedDirectory = path.dirname(jsonFile);
+    const outputFeedDir = path.join(outputDir, feedDirectory);
+    
+    // Ensure the output directory structure exists
+    fs.ensureDirSync(outputFeedDir);
+    
+    // Load the artist file
+    const artistsData = await fs.readJson(fullPath);
+    
+    // Get feed metadata or use defaults
+    const feedTitle = artistsData.title || `${feedId} RSS Feed`;
+    const feedDescription = artistsData.description || `Latest releases from ${feedId}`;
+    const artists = artistsData.artists || [];
+    
+    if (artists.length === 0) {
+      console.log(`No artists found in ${jsonFile}, skipping`);
+      return;
+    }
+    
     // Create a new feed
     const feed = new Feed({
-      title: "Bandcamp Releases RSS Feed",
-      description: "Latest releases from your favorite artists",
-      id: "https://github.com/user/artist-rss-feed-generator",
-      link: "https://github.com/user/artist-rss-feed-generator",
+      title: feedTitle,
+      description: feedDescription,
+      id: `https://github.com/user/artist-rss-feed-generator/${feedId}`,
+      link: `https://github.com/user/artist-rss-feed-generator/${feedId}`,
       language: "en",
       copyright: `All rights reserved ${new Date().getFullYear()}`,
       updated: new Date(),
       generator: "Artist RSS Feed Generator"
     });
-
+    
     // Process each artist and add their releases to the feed
-    console.log(`Processing ${artists.length} artists...`);
+    console.log(`Processing ${artists.length} artists in ${jsonFile}...`);
     
     let totalReleaseCount = 0;
     
@@ -383,7 +128,6 @@ async function generateFeed() {
         
         // Filter out sample/example releases
         const realReleases = releases.filter(release => {
-          // Skip releases with "Sample" or "Example" in title
           if (
             release.title.includes("Sample") || 
             release.title.includes("Error Reading") || 
@@ -394,7 +138,6 @@ async function generateFeed() {
             return false;
           }
           
-          // Skip releases with example URLs
           if (
             release.url.includes("example.com") || 
             !release.url.includes(".")
@@ -408,40 +151,48 @@ async function generateFeed() {
         
         // Add each real release to the feed
         for (const release of realReleases) {
-			// Create enhanced description with embedded image and properly escape HTML entities
-			let safeDescription = (release.description || `New release by ${artist.name}`)
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
-				.replace(/"/g, '&quot;')
-				.replace(/'/g, '&apos;');
-
-			let safeTitle = (artist.name + ' - ' + release.title)
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
-				.replace(/"/g, '&quot;')
-				.replace(/'/g, '&apos;');
-
-			// When preparing URLs, make sure to escape equals signs
-			let safeUrl = release.url
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
-				.replace(/"/g, '&quot;')
-				.replace(/'/g, '&apos;')
-				.replace(/=/g, '%3D'); // Replace equals signs with %3D (URL encoding)
-
-			let safeImageUrl = '';
-			if (release.image) {
-				safeImageUrl = release.image
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
-				.replace(/"/g, '&quot;')
-				.replace(/'/g, '&apos;')
-				.replace(/=/g, '%3D'); // Replace equals signs with %3D
-			}
+          // Sanitize content for XML
+          let safeDescription = (release.description || `New release by ${artist.name}`)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+          
+          let safeTitle = (artist.name + ' - ' + release.title)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+          
+          // When preparing URLs, make sure to escape equals signs
+          let safeUrl = release.url
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;')
+            .replace(/=/g, '%3D');
+          
+          let safeImageUrl = '';
+          if (release.image) {
+            safeImageUrl = release.image
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&apos;')
+              .replace(/=/g, '%3D');
+          }
+          
+          let safeArtistUrl = artist.url
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;')
+            .replace(/=/g, '%3D');
           
           const enhancedDescription = release.image 
             ? `<p><img src="${safeImageUrl}" alt="${safeTitle}" style="max-width:100%;"></p>
@@ -450,23 +201,23 @@ async function generateFeed() {
           
           try {
             feed.addItem({
-			  title: `${artist.name} - ${release.title}`,
-			  id: safeUrl,
-			  link: safeUrl,
-			  description: enhancedDescription,
-			  author: [
-				{
-				  name: artist.name,
-				  link: artist.url.replace(/&/g, '&amp;').replace(/=/g, '%3D')
-				}
-			  ],
-			  date: release.date || new Date(),
-			  image: release.image ? {
-				url: safeImageUrl,
-				title: safeTitle,
-				link: safeUrl
-			  } : undefined
-			});
+              title: `${artist.name} - ${release.title}`,
+              id: safeUrl,
+              link: safeUrl,
+              description: enhancedDescription,
+              author: [
+                {
+                  name: artist.name,
+                  link: safeArtistUrl
+                }
+              ],
+              date: release.date || new Date(),
+              image: release.image ? {
+                url: safeImageUrl,
+                title: safeTitle,
+                link: safeUrl
+              } : undefined
+            });
           } catch (e) {
             console.error(`Error adding feed item ${artist.name} - ${release.title}: ${e.message}`);
           }
@@ -480,50 +231,69 @@ async function generateFeed() {
         console.error(`Error scraping ${artist.name}: ${error.message}`);
       }
     }
-
-    console.log(`Total real releases count: ${totalReleaseCount}`);
+    
+    console.log(`Total real releases count for ${jsonFile}: ${totalReleaseCount}`);
     console.log(`Total items added to feed: ${feed.items ? feed.items.length : 0}`);
-
-    // Only generate feed if we have real content
+    
+    // Determine output file path
+    const outputFile = path.join(outputFeedDir, `${feedId}-feed.xml`);
+    
+    // Generate and write the feed
     if (totalReleaseCount === 0) {
-      console.log("No actual releases found for any artists. Not generating empty feed.");
+      console.log(`No actual releases found for ${jsonFile}. Creating minimal feed.`);
       
-      // Create a minimal feed with a message instead
+      // Create a minimal feed with a message
       const rssOutput = `<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
   <channel>
-    <title>Bandcamp Releases RSS Feed</title>
-    <description>Latest releases from your favorite artists</description>
+    <title>${feedTitle}</title>
+    <description>${feedDescription}</description>
     <link>https://github.com/user/artist-rss-feed-generator</link>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <item>
       <title>No Releases Found</title>
       <link>https://github.com/user/artist-rss-feed-generator</link>
-      <description>No releases were found for the configured artists. Please check your artists.json file.</description>
+      <description>No releases were found for the configured artists. Please check your artists list.</description>
       <pubDate>${new Date().toUTCString()}</pubDate>
       <guid>https://github.com/user/artist-rss-feed-generator/no-releases-${Date.now()}</guid>
     </item>
   </channel>
 </rss>`;
       
-      await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), rssOutput);
-      console.log(`Minimal RSS feed written to ${path.join(outputDir, 'artists-feed.xml')}`);
+      await fs.writeFile(outputFile, rssOutput);
     } else {
       // Generate the RSS feed XML
       const rssOutput = feed.rss2();
       
       // Write the feed to the output directory
-      await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), rssOutput);
-      console.log(`RSS feed with ${totalReleaseCount} releases written to ${path.join(outputDir, 'artists-feed.xml')}`);
+      await fs.writeFile(outputFile, rssOutput);
     }
     
-    // Create a simple index.html file
-    const indexHtml = `<!DOCTYPE html>
+    console.log(`Feed written to ${outputFile}`);
+    
+    // Create a feed-specific HTML page
+    await createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, totalReleaseCount);
+    
+  } catch (error) {
+    console.error(`Error generating feed for ${jsonFile}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Create an HTML page for a specific feed
+ */
+async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, releaseCount) {
+  const relativePath = path.join(feedDirectory, feedId);
+  const htmlPath = path.join(outputDir, feedDirectory, `${feedId}.html`);
+  
+  // Create a simple HTML page for this feed
+  const feedHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bandcamp RSS Feed Generator</title>
+  <title>${feedTitle} - RSS Feed</title>
   <style>
     :root {
       --bg-color: #121212;
@@ -571,32 +341,36 @@ async function generateFeed() {
       overflow: auto;
       border: 1px solid var(--border-color);
     }
+    .back-link {
+      margin-bottom: 20px;
+    }
+    .back-link a {
+      color: var(--link-color);
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Artist RSS Feed Generator</h1>
-    <p>This page hosts an automatically generated RSS feed for the latest releases from your favorite artists.</p>
-    
-    <h2>Subscribe to the RSS Feed</h2>
-    <div class="feed-link">
-      <a href="./artists-feed.xml">artists-feed.xml</a>
+    <div class="back-link">
+      <a href="../index.html">← Back to All Feeds</a>
     </div>
     
-    <h3>How to Use</h3>
-    <p>Copy the link above and add it to your favorite RSS reader to stay updated with new releases.</p>
+    <h1>${feedTitle}</h1>
+    <p>This feed contains releases from the artists configured in <code>${jsonFile}</code>.</p>
     
-    <h3>Last Updated</h3>
-    <p>This feed was last updated on: ${
+    <h2>Subscribe to this RSS Feed</h2>
+    <div class="feed-link">
+      <a href="./${feedId}-feed.xml">${feedId}-feed.xml</a>
+    </div>
+    
+    <h3>Details</h3>
+    <p>Feed ID: ${feedId}</p>
+    <p>Number of releases: ${releaseCount}</p>
+    <p>Last updated: ${
       (() => {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+        return now.toLocaleString();
       })()
     }</p>
     
@@ -606,55 +380,175 @@ async function generateFeed() {
   </div>
 </body>
 </html>`;
-    
-    await fs.writeFile(path.join(outputDir, 'index.html'), indexHtml);
-    console.log(`Index page written to ${path.join(outputDir, 'index.html')}`);
+  
+  await fs.writeFile(htmlPath, feedHtml);
+  console.log(`Feed info page written to ${htmlPath}`);
+}
 
-  } catch (error) {
-    console.error('Error generating feed:', error);
-    // Create minimal output files even if there's an error
+/**
+ * Create the main index page that links to all available feeds
+ */
+async function createIndexPage(jsonFiles) {
+  // Prepare feed list
+  let feedListHtml = '';
+  
+  for (const jsonFile of jsonFiles) {
+    const feedId = path.basename(jsonFile, '.json');
+    const feedDirectory = path.dirname(jsonFile);
+    const relativePath = path.join(feedDirectory, feedId);
+    
+    // Try to read the JSON to get the title
     try {
-      // Create a minimal RSS feed
-      const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Artist Releases RSS Feed</title>
-    <description>Latest releases from your favorite artists</description>
-    <link>https://github.com/user/artist-rss-feed-generator</link>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <item>
-      <title>Error Generating Feed</title>
-      <link>https://github.com/user/artist-rss-feed-generator</link>
-      <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
-      <pubDate>${new Date().toUTCString()}</pubDate>
-      <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
-    </item>
-  </channel>
-</rss>`;
+      const fullPath = path.join(artistsDir, jsonFile);
+      const artistsData = await fs.readJson(fullPath);
+      const feedTitle = artistsData.title || `${feedId} RSS Feed`;
       
-      await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
-      
-      // Create a minimal index.html
-      const minimalHtml = `<!DOCTYPE html>
+      feedListHtml += `
+      <li class="feed-item">
+        <a href="${relativePath}.html">${feedTitle}</a>
+        <div class="feed-details">
+          <span class="feed-id">${feedId}</span>
+          <a href="${relativePath}-feed.xml" class="direct-link">Direct XML Link</a>
+        </div>
+      </li>`;
+    } catch (error) {
+      console.error(`Error reading feed info for ${jsonFile}:`, error);
+      feedListHtml += `
+      <li class="feed-item">
+        <a href="${relativePath}.html">${feedId}</a>
+        <div class="feed-details">
+          <span class="feed-id">${feedId}</span>
+          <a href="${relativePath}-feed.xml" class="direct-link">Direct XML Link</a>
+        </div>
+      </li>`;
+    }
+  }
+  
+  // Create the index HTML
+  const indexHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Artist RSS Feed (Error)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artist RSS Feed Generator</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --text-color: #e4e4e4;
+      --link-color: #90caf9;
+      --secondary-bg: #1e1e1e;
+      --accent-color: #bb86fc;
+      --border-color: #333333;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    .container {
+      margin-top: 40px;
+    }
+    h1, h2, h3 {
+      color: var(--accent-color);
+    }
+    a {
+      color: var(--link-color);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .feed-list {
+      list-style: none;
+      padding: 0;
+    }
+    .feed-item {
+      background-color: var(--secondary-bg);
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+    }
+    .feed-item a {
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    .feed-details {
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #aaa;
+      display: flex;
+      justify-content: space-between;
+    }
+    .direct-link {
+      font-family: monospace;
+    }
+    pre {
+      background-color: var(--secondary-bg);
+      border-radius: 6px;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--border-color);
+    }
+  </style>
 </head>
 <body>
-  <h1>Error Generating Feed</h1>
-  <p>There was an error generating the artist RSS feed. Please check the GitHub Actions logs.</p>
-  <p>A minimal feed is still available at <a href="./artists-feed.xml">artists-feed.xml</a></p>
+  <div class="container">
+    <h1>Artist RSS Feed Generator</h1>
+    <p>This page hosts automatically generated RSS feeds for the latest releases from your favorite artists.</p>
+    
+    <h2>Available Feeds</h2>
+    <ul class="feed-list">
+      ${feedListHtml}
+    </ul>
+    
+    <h3>How to Use</h3>
+    <p>Click on a feed to view details, or copy the direct XML link to add it to your favorite RSS reader.</p>
+    
+    <h3>Creating Custom Feeds</h3>
+    <p>To create a new feed, add a JSON file to the 'artists' directory with the following format:</p>
+    <pre>{
+  "title": "Your Feed Title",
+  "description": "Description of your feed",
+  "artists": [
+    {
+      "name": "Artist Name",
+      "url": "https://artist-bandcamp-url.com",
+      "maxReleases": 5
+    },
+    {
+      "name": "Another Artist",
+      "url": "https://another-artist.bandcamp.com",
+      "maxReleases": 3
+    }
+  ]
+}</pre>
+    
+    <h3>Last Updated</h3>
+    <p>These feeds were last updated on: ${
+      (() => {
+        const now = new Date();
+        return now.toLocaleString();
+      })()
+    }</p>
+    
+    <footer>
+      <p>Generated by <a href="https://github.com/blstrManx/bandcamp-rss">Bandcamp RSS Feed Generator</a></p>
+    </footer>
+  </div>
 </body>
 </html>`;
-      
-      await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
-      console.log('Created minimal output files due to error');
-    } catch (e) {
-      console.error('Failed to create minimal output files:', e);
-    }
-  }
+  
+  await fs.writeFile(path.join(outputDir, 'index.html'), indexHtml);
+  console.log(`Main index page written to ${path.join(outputDir, 'index.html')}`);
 }
 
-// Run the feed generator
-generateFeed();
+// Start the process
+processArtistFiles().catch(error => {
+  console.error('Error in main process:', error);
+});

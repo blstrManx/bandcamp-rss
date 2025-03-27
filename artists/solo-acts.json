@@ -1,0 +1,18 @@
+{
+	"title": "Solo Acts",
+	"description": "ex",
+	"artists": [
+	{
+	  "name": "Underscores",
+	  "url": "https://underscores.bandcamp.com/music"
+	},
+	{
+	  "name": "Tsubi Club",
+	  "url": "https://tsubiclub.bandcamp.com/music"
+	},
+	{
+	  "name": "Internet Girl",
+	  "url": "https://internetgirl.bandcamp.com/music"
+	}
+	]
+}

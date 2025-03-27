@@ -1,0 +1,35 @@
+{
+	"title": "Labels",
+	"description": "ex",
+	"artists": [
+	{
+	  "name": "HARDCORE TANO*C",
+	  "url": "https://tanoc.bandcamp.com/music",
+	  "maxReleases": 3
+	},
+	{
+	  "name": "International Anthem Recording Company",
+	  "url": "https://intlanthem.bandcamp.com/music"
+	},
+	{
+	  "name": "Hubro",
+	  "url": "https://hubromusic.bandcamp.com/music"
+	},
+	{
+	  "name": "Warp Records",
+	  "url": "https://warprecords.bandcamp.com/music"
+	},
+	{
+	  "name": "Brainfeeder",
+	  "url": "https://brainfeeder.bandcamp.com/music"
+	},
+	{
+	  "name": "Kranky Records",
+	  "url": "https://kranky.bandcamp.com/music"
+	},
+	{
+	  "name": "bbe",
+	  "url": "https://bbemusic.bandcamp.com/music"
+	}
+	]
+}
