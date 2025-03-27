@@ -394,11 +394,35 @@ async function generateFeed() {
         
         // Add each real release to the feed
         for (const release of realReleases) {
-          // Create enhanced description with embedded image
+          // Create enhanced description with embedded image and properly escape HTML entities
+          let safeDescription = (release.description || `New release by ${artist.name}`)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+          
+          let safeTitle = (artist.name + ' - ' + release.title)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+          
+          let safeImageUrl = '';
+          if (release.image) {
+            safeImageUrl = release.image
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&apos;');
+          }
+          
           const enhancedDescription = release.image 
-            ? `<p><img src="${release.image}" alt="${artist.name} - ${release.title}" style="max-width:100%;"></p>
-               <p>${release.description || `New release by ${artist.name}`}</p>`
-            : (release.description || `New release by ${artist.name}`);
+            ? `<p><img src="${safeImageUrl}" alt="${safeTitle}" style="max-width:100%;"></p>
+               <p>${safeDescription}</p>`
+            : safeDescription;
           
           feed.addItem({
             title: `${artist.name} - ${release.title}`,
