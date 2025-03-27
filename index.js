@@ -265,38 +265,51 @@ async function generateFeed() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Artist RSS Feed Generator</title>
   <style>
+    :root {
+      --bg-color: #121212;
+      --text-color: #e4e4e4;
+      --link-color: #90caf9;
+      --secondary-bg: #1e1e1e;
+      --accent-color: #bb86fc;
+      --border-color: #333333;
+    }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.6;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
     }
     .container {
       margin-top: 40px;
     }
-    h1 {
-      margin-bottom: 20px;
+    h1, h2, h3 {
+      color: var(--accent-color);
     }
     .feed-link {
-      background-color: #f5f5f5;
+      background-color: var(--secondary-bg);
       padding: 15px;
       border-radius: 5px;
       font-family: monospace;
       word-break: break-all;
+      border: 1px solid var(--border-color);
     }
     .feed-link a {
-      color: #0366d6;
+      color: var(--link-color);
       text-decoration: none;
     }
     .feed-link a:hover {
       text-decoration: underline;
     }
     pre {
-      background-color: #f6f8fa;
+      background-color: var(--secondary-bg);
       border-radius: 6px;
       padding: 16px;
       overflow: auto;
+      border: 1px solid var(--border-color);
     }
   </style>
 </head>
@@ -318,23 +331,97 @@ async function generateFeed() {
     <pre id="artistList">Loading artist list...</pre>
     
     <script>
-      // Simple script to fetch and display the artist list
-      fetch('./artists-feed.xml')
-        .then(response => response.text())
-        .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-        .then(data => {
-          const items = data.querySelectorAll('item');
-          const artists = new Set();
-          items.forEach(item => {
-            const author = item.querySelector('author');
-            if (author) {
-              artists.add(author.textContent.trim());
-            }
-          });
-          document.getElementById('artistList').textContent = Array.from(artists).join('\\n');
+      // Fetch the artists directly from the JSON file
+      fetch('./artists.json')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
         })
-        .catch(err => {
-          document.getElementById('artistList').textContent = 'Error loading artist list. The feed may still be generating.';
+        .then(data => {
+          const artistListElement = document.getElementById('artistList');
+          
+          if (data && Array.isArray(data) && data.length > 0) {
+            const artistListHtml = document.createElement('ul');
+            artistListHtml.className = 'artist-list';
+            
+            data.forEach(artist => {
+              const listItem = document.createElement('li');
+              const artistLink = document.createElement('a');
+              artistLink.href = artist.url;
+              artistLink.className = 'artist-link';
+              artistLink.textContent = artist.name;
+              artistLink.target = '_blank';
+              
+              listItem.appendChild(artistLink);
+              artistListHtml.appendChild(listItem);
+            });
+            
+            // Clear loading message and add the list
+            artistListElement.innerHTML = '';
+            artistListElement.appendChild(artistListHtml);
+          } else {
+            artistListElement.textContent = 'No artists found in the feed.';
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching artist data:', error);
+          document.getElementById('artistList').textContent = 'Error loading artist list. The list may still be generating.';
+          
+          // Try the alternative method using the XML as fallback
+          fetch('./artists-feed.xml')
+            .then(response => response.text())
+            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+            .then(data => {
+              try {
+                const items = data.querySelectorAll('item');
+                const artistMap = new Map();
+                
+                items.forEach(item => {
+                  const authorElement = item.querySelector('author');
+                  if (authorElement) {
+                    const authorText = authorElement.textContent.trim();
+                    const authorMatch = authorText.match(/([^<]+)(?:<([^>]+)>)?/);
+                    if (authorMatch && authorMatch[1]) {
+                      const name = authorMatch[1].trim();
+                      const link = authorMatch[2] ? authorMatch[2].trim() : '';
+                      artistMap.set(name, link);
+                    }
+                  }
+                });
+                
+                if (artistMap.size > 0) {
+                  const artistListElement = document.getElementById('artistList');
+                  const artistListHtml = document.createElement('ul');
+                  artistListHtml.className = 'artist-list';
+                  
+                  for (const [name, link] of artistMap.entries()) {
+                    const listItem = document.createElement('li');
+                    if (link) {
+                      const artistLink = document.createElement('a');
+                      artistLink.href = link;
+                      artistLink.className = 'artist-link';
+                      artistLink.textContent = name;
+                      artistLink.target = '_blank';
+                      listItem.appendChild(artistLink);
+                    } else {
+                      listItem.textContent = name;
+                    }
+                    artistListHtml.appendChild(listItem);
+                  }
+                  
+                  // Clear loading message and add the list
+                  artistListElement.innerHTML = '';
+                  artistListElement.appendChild(artistListHtml);
+                }
+              } catch (xmlError) {
+                console.error('Error parsing XML:', xmlError);
+              }
+            })
+            .catch(xmlError => {
+              console.error('Error with fallback XML method:', xmlError);
+            });
         });
     </script>
     
