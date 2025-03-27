@@ -28,7 +28,11 @@ def add_artist(artist_url):
         print("Artist already in list.")
 
 def fetch_bandcamp_releases(artist_url):
-    response = requests.get(artist_url)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+    }
+    
+    response = requests.get(artist_url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     
     releases = []
@@ -47,6 +51,7 @@ def fetch_bandcamp_releases(artist_url):
         releases.append({"title": title, "link": link, "image": image})
     
     return releases
+
 
 def generate_rss():
     fg = FeedGenerator()
