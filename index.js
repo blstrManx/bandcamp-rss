@@ -648,6 +648,15 @@ async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, re
   const relativePath = path.join(feedDirectory, feedId);
   const htmlPath = path.join(outputDir, feedDirectory, `${feedId}.html`);
   
+  // Calculate the correct back link path based on directory depth
+  let backLink = "../index.html";
+  
+  // If we're in a nested directory, we need to add more '../' to get back to root
+  if (feedDirectory !== '.') {
+    const depth = feedDirectory.split(path.sep).length;
+    backLink = Array(depth).fill('..').join('/') + '/index.html';
+  }
+  
   // Create a simple HTML page for this feed
   const feedHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -714,7 +723,7 @@ async function createFeedInfoPage(jsonFile, feedId, feedTitle, feedDirectory, re
 <body>
   <div class="container">
     <div class="back-link">
-      <a href="../">← Back to All Feeds</a>
+      <a href="${backLink}">← Back to All Feeds</a>
     </div>
     
     <h1>${feedTitle}</h1>
