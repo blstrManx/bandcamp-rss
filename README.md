@@ -117,13 +117,13 @@ If you see a 404 error when trying to access your site:
 2. Check that GitHub Pages settings point to that branch
 3. Try adding a `.nojekyll` file to your gh-pages branch (this is done automatically by the workflow)
 
+## Soundcloud and Spotify
+
+Spotify requires an API key, and I don't have premium, so that's not happening. If I can get Soundcloud to work, I'll update the repo. Still quite unlikely, imo.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Todo
-
-Soundcloud and Spotify support is in an early state. Spotify support is unlikely.
 
 ## Contributing
 
