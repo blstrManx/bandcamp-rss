@@ -4,8 +4,41 @@
       "name": "Example Artist",
       "url": "https://example.com/artist/page"
     },
+	{
+      "name": "HARDCORE TANO*C",
+      "url": "https://tanoc.bandcamp.com/"
+    },
+    {
       "name": "International Anthem Recording Company",
       "url": "https://intlanthem.bandcamp.com/"
+    }
+	{
+      "name": "Hubro",
+      "url": "https://hubromusic.bandcamp.com/"
+    }
+	{
+      "name": "Warp Records",
+      "url": "https://warprecords.bandcamp.com/"
+    }
+	{
+      "name": "Brainfeeder",
+      "url": "https://brainfeeder.bandcamp.com/"
+    }
+	{
+      "name": "Kranky Records",
+      "url": "https://kranky.bandcamp.com/"
+    }
+	{
+      "name": "bbe",
+      "url": "https://bbemusic.bandcamp.com/music"
+    }
+	{
+      "name": "Underscores",
+      "url": "https://underscores.bandcamp.com/"
+    }
+	{
+      "name": "Internet Girl",
+      "url": "https://internetgirl.bandcamp.com/"
     }
   ]
 }
