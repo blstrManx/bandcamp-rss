@@ -672,51 +672,64 @@ async function generateFeed() {
     console.log(`Index page written to ${path.join(outputDir, 'index.html')}`);
 
   } catch (error) {
-  console.error('Error generating feed:', error);
-  // Create minimal output files even if there's an error
-  try {
-    // Notice: no reference to "releases" variable here
-    
-    // Create a minimal RSS feed
-    const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Artist Releases RSS Feed</title>
-    <description>Latest releases from your favorite artists</description>
-    <link>https://github.com/user/artist-rss-feed-generator</link>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <item>
-      <title>Error Generating Feed</title>
-      <link>https://github.com/user/artist-rss-feed-generator</link>
-      <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
-      <pubDate>${new Date().toUTCString()}</pubDate>
-      <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
-    </item>
-  </channel>
-</rss>`;
-    
-    await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
-    
-    // Create a minimal index.html
-    const minimalHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Artist RSS Feed (Error)</title>
-</head>
-<body>
-  <h1>Error Generating Feed</h1>
-  <p>There was an error generating the artist RSS feed. Please check the GitHub Actions logs.</p>
-  <p>A minimal feed is still available at <a href="./artists-feed.xml">artists-feed.xml</a></p>
-</body>
-</html>`;
-    
-    await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
-    console.log('Created minimal output files due to error');
-  } catch (e) {
-    console.error('Failed to create minimal output files:', e);
-  }
+	  console.error('Error generating feed:', error);
+	  // Create minimal output files even if there's an error
+	  try {
+		// Notice: no reference to "releases" variable here
+		
+		// Create a minimal RSS feed
+		const minimalFeed = `<?xml version="1.0" encoding="utf-8"?>
+	<rss version="2.0">
+	  <channel>
+		<title>Artist Releases RSS Feed</title>
+		<description>Latest releases from your favorite artists</description>
+		<link>https://github.com/user/artist-rss-feed-generator</link>
+		<lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+		<item>
+		  <title>Error Generating Feed</title>
+		  <link>https://github.com/user/artist-rss-feed-generator</link>
+		  <description>There was an error generating the feed. Please check the GitHub Actions logs.</description>
+		  <pubDate>${new Date().toUTCString()}</pubDate>
+		  <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
+		</item>
+	  </channel>
+	</rss>`;
+		
+		await fs.writeFile(path.join(outputDir, 'artists-feed.xml'), minimalFeed);
+		
+		// Create a minimal index.html
+		const minimalHtml = `<!DOCTYPE html>
+	<html lang="en">
+	<head>
+	  <meta charset="UTF-8">
+	  <title>Artist RSS Feed (Error)</title>
+	</head>
+	<body>
+	  <h1>Error Generating Feed</h1>
+	  <p>There was an error generating the artist RSS feed. Please check the GitHub Actions logs.</p>
+	  <p>A minimal feed is still available at <a href="./artists-feed.xml">artists-feed.xml</a></p>
+	</body>
+	</html>`;
+		
+		await fs.writeFile(path.join(outputDir, 'index.html'), minimalHtml);
+		console.log('Created minimal output files due to error');
+	  } catch (e) {
+		console.error('Failed to create minimal output files:', e);
+	  }
+	}
 }
+
+// At the end of your index.js file, after generateFeed():
+// Add these lines to check for balanced braces
+
+let braceCount = 0;
+let fileContents = fs.readFileSync('./index.js', 'utf8');
+for (let i = 0; i < fileContents.length; i++) {
+  if (fileContents[i] === '{') braceCount++;
+  if (fileContents[i] === '}') braceCount--;
+}
+console.log(`Brace balance check: ${braceCount === 0 ? 'OK' : 'FAILED! Missing braces!'}`);
+
 
 // Run the feed generator
 generateFeed();
