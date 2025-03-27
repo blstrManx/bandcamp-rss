@@ -263,7 +263,7 @@ async function generateFeed() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Artist RSS Feed Generator</title>
+  <title>Bandcamp RSS Feed Generator</title>
   <style>
     :root {
       --bg-color: #121212;
@@ -325,105 +325,6 @@ async function generateFeed() {
     
     <h3>How to Use</h3>
     <p>Copy the link above and add it to your favorite RSS reader to stay updated with new releases.</p>
-    
-    <h3>Currently Tracking</h3>
-    <p>This feed is currently tracking releases from the following artists:</p>
-    <pre id="artistList">Loading artist list...</pre>
-    
-    <script>
-      // Fetch the artists directly from the JSON file
-      fetch('./artists.json')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.json();
-        })
-        .then(data => {
-          const artistListElement = document.getElementById('artistList');
-          
-          if (data && Array.isArray(data) && data.length > 0) {
-            const artistListHtml = document.createElement('ul');
-            artistListHtml.className = 'artist-list';
-            
-            data.forEach(artist => {
-              const listItem = document.createElement('li');
-              const artistLink = document.createElement('a');
-              artistLink.href = artist.url;
-              artistLink.className = 'artist-link';
-              artistLink.textContent = artist.name;
-              artistLink.target = '_blank';
-              
-              listItem.appendChild(artistLink);
-              artistListHtml.appendChild(listItem);
-            });
-            
-            // Clear loading message and add the list
-            artistListElement.innerHTML = '';
-            artistListElement.appendChild(artistListHtml);
-          } else {
-            artistListElement.textContent = 'No artists found in the feed.';
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching artist data:', error);
-          document.getElementById('artistList').textContent = 'Error loading artist list. The list may still be generating.';
-          
-          // Try the alternative method using the XML as fallback
-          fetch('./artists-feed.xml')
-            .then(response => response.text())
-            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
-            .then(data => {
-              try {
-                const items = data.querySelectorAll('item');
-                const artistMap = new Map();
-                
-                items.forEach(item => {
-                  const authorElement = item.querySelector('author');
-                  if (authorElement) {
-                    const authorText = authorElement.textContent.trim();
-                    const authorMatch = authorText.match(/([^<]+)(?:<([^>]+)>)?/);
-                    if (authorMatch && authorMatch[1]) {
-                      const name = authorMatch[1].trim();
-                      const link = authorMatch[2] ? authorMatch[2].trim() : '';
-                      artistMap.set(name, link);
-                    }
-                  }
-                });
-                
-                if (artistMap.size > 0) {
-                  const artistListElement = document.getElementById('artistList');
-                  const artistListHtml = document.createElement('ul');
-                  artistListHtml.className = 'artist-list';
-                  
-                  for (const [name, link] of artistMap.entries()) {
-                    const listItem = document.createElement('li');
-                    if (link) {
-                      const artistLink = document.createElement('a');
-                      artistLink.href = link;
-                      artistLink.className = 'artist-link';
-                      artistLink.textContent = name;
-                      artistLink.target = '_blank';
-                      listItem.appendChild(artistLink);
-                    } else {
-                      listItem.textContent = name;
-                    }
-                    artistListHtml.appendChild(listItem);
-                  }
-                  
-                  // Clear loading message and add the list
-                  artistListElement.innerHTML = '';
-                  artistListElement.appendChild(artistListHtml);
-                }
-              } catch (xmlError) {
-                console.error('Error parsing XML:', xmlError);
-              }
-            })
-            .catch(xmlError => {
-              console.error('Error with fallback XML method:', xmlError);
-            });
-        });
-    </script>
     
     <h3>Last Updated</h3>
     <p>This feed was last updated on: ${
