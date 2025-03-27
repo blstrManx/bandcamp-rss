@@ -54,10 +54,13 @@ async function scrapeBandcamp(url) {
     const $ = cheerio.load(data);
     const releases = [];
 
-    // Get all album/track items from the page
+    // Get album/track items from the page - limit to 5 most recent
     const albumItems = $('.music-grid-item');
+    const itemCount = Math.min(albumItems.length, 5); // Only process the first 5 items
     
-    for (let i = 0; i < albumItems.length; i++) {
+    console.log(`Found ${albumItems.length} releases, processing first ${itemCount}`);
+    
+    for (let i = 0; i < itemCount; i++) {
       const el = albumItems[i];
       const albumUrl = $(el).find('a').attr('href');
       const title = $(el).find('.title').text().trim();
