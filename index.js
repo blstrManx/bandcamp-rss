@@ -702,7 +702,38 @@ async function createIndexPage(jsonFiles) {
 }
 
 /**
- * Generates a feed for a specific artist JSON file
+ * Process and sanitize image URLs to ensure they are valid absolute URLs
+ * @param {string} imageUrl - The original image URL
+ * @param {string} baseUrl - The base URL to use for relative paths
+ * @returns {string} - A valid absolute URL or empty string if invalid
+ */
+function processImageUrl(imageUrl, baseUrl) {
+  if (!imageUrl || imageUrl.trim() === '') {
+    return ''; // Return empty string for empty URLs
+  }
+  
+  try {
+    // Check if it's a relative URL
+    if (imageUrl.startsWith('/')) {
+      // Try to construct a full URL using the base URL
+      const urlObj = new URL(baseUrl);
+      return `${urlObj.protocol}//${urlObj.hostname}${imageUrl}`;
+    } else if (!imageUrl.includes('://')) {
+      // It's a relative URL without a leading slash
+      const urlObj = new URL(baseUrl);
+      return `${urlObj.protocol}//${urlObj.hostname}/${imageUrl}`;
+    } else {
+      // It's already an absolute URL, just return it
+      return imageUrl;
+    }
+  } catch (error) {
+    console.error(`Error processing image URL ${imageUrl}: ${error.message}`);
+    return ''; // Return empty string if URL is invalid
+  }
+}
+
+/**
+ * Generates a feed for a specific artist JSON file - with URL validation fix
  * @param {string} jsonFile - Relative path to the JSON file within the artists directory
  * @param {string} fullPath - Full path to the JSON file
  * @returns {Promise<void>}
@@ -778,6 +809,15 @@ async function generateFeedForFile(jsonFile, fullPath) {
         
         // Add each real release to the feed
         for (const release of realReleases) {
+          // Process and validate the image URL
+          let processedImageUrl = '';
+          if (release.image) {
+            processedImageUrl = processImageUrl(release.image, artist.url);
+            if (!processedImageUrl) {
+              console.log(`Skipping invalid image URL for ${release.title}: ${release.image}`);
+            }
+          }
+          
           // Sanitize content for XML
           let safeDescription = (release.description || `New release by ${artist.name}`)
             .replace(/&/g, '&amp;')
@@ -803,8 +843,8 @@ async function generateFeedForFile(jsonFile, fullPath) {
             .replace(/=/g, '%3D');
           
           let safeImageUrl = '';
-          if (release.image) {
-            safeImageUrl = release.image
+          if (processedImageUrl) {
+            safeImageUrl = processedImageUrl
               .replace(/&/g, '&amp;')
               .replace(/</g, '&lt;')
               .replace(/>/g, '&gt;')
@@ -821,13 +861,15 @@ async function generateFeedForFile(jsonFile, fullPath) {
             .replace(/'/g, '&apos;')
             .replace(/=/g, '%3D');
           
-          const enhancedDescription = release.image 
+          // Only include the image in the description if we have a valid image URL
+          const enhancedDescription = safeImageUrl 
             ? `<p><img src="${safeImageUrl}" alt="${safeTitle}" style="max-width:100%;"></p>
                <p>${safeDescription}</p>`
             : safeDescription;
           
           try {
-            feed.addItem({
+            // Prepare feed item with or without image based on URL validity
+            const feedItem = {
               title: `${artist.name} - ${release.title}`,
               id: safeUrl,
               link: safeUrl,
@@ -838,13 +880,19 @@ async function generateFeedForFile(jsonFile, fullPath) {
                   link: safeArtistUrl
                 }
               ],
-              date: release.date || new Date(),
-              image: release.image ? {
+              date: release.date || new Date()
+            };
+            
+            // Only add image if we have a valid URL
+            if (safeImageUrl) {
+              feedItem.image = {
                 url: safeImageUrl,
                 title: safeTitle,
                 link: safeUrl
-              } : undefined
-            });
+              };
+            }
+            
+            feed.addItem(feedItem);
           } catch (e) {
             console.error(`Error adding feed item ${artist.name} - ${release.title}: ${e.message}`);
           }
@@ -889,65 +937,91 @@ async function generateFeedForFile(jsonFile, fullPath) {
       
       await fs.writeFile(outputFile, rssOutput);
     } else {
-      // Generate the RSS feed XML
-      console.log(`Generating RSS feed for ${jsonFile} with ${feed.items.length} items`);
-      const rssOutput = feed.rss2();
-      
-      // Debug check - verify the XML output has items
-      const hasItems = rssOutput.includes("<item>");
-      console.log(`XML output contains items: ${hasItems}`);
-      
-      // If the feed.rss2() didn't include items, generate manual XML
-      if (!hasItems && feed.items.length > 0) {
-        console.log("Feed.rss2() failed to include items, using manual XML generation");
+      // Try catch block to detect and handle any issues with RSS generation
+      try {
+        // Generate the RSS feed XML
+        console.log(`Generating RSS feed for ${jsonFile} with ${feed.items.length} items`);
+        const rssOutput = feed.rss2();
         
-        // Start with channel info
-        let manualRssOutput = `<?xml version="1.0" encoding="utf-8"?>
+        // Debug check - verify the XML output has items
+        const hasItems = rssOutput.includes("<item>");
+        console.log(`XML output contains items: ${hasItems}`);
+        
+        // If the feed.rss2() didn't include items, generate manual XML
+        if (!hasItems && feed.items.length > 0) {
+          console.log("Feed.rss2() failed to include items, using manual XML generation");
+          
+          // Start with channel info
+          let manualRssOutput = `<?xml version="1.0" encoding="utf-8"?>
+      <rss version="2.0">
+        <channel>
+          <title>${feedTitle}</title>
+          <description>${feedDescription}</description>
+          <link>https://github.com/user/artist-rss-feed-generator</link>
+          <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>`;
+          
+          // Add each item manually
+          for (const item of feed.items) {
+            manualRssOutput += `
+          <item>
+            <title>${item.title}</title>
+            <link>${item.link}</link>
+            <guid>${item.id || item.link}</guid>
+            <pubDate>${item.date.toUTCString()}</pubDate>
+            <description>${item.description}</description>`;
+            
+            // Add author if available
+            if (item.author && item.author.length > 0) {
+              manualRssOutput += `
+            <author>${item.author[0].name}</author>`;
+            }
+            
+            // Add image if available and valid
+            if (item.image && item.image.url) {
+              manualRssOutput += `
+            <enclosure url="${item.image.url}" type="image/jpeg" />`;
+            }
+            
+            manualRssOutput += `
+          </item>`;
+          }
+          
+          // Close the channel and rss tags
+          manualRssOutput += `
+        </channel>
+      </rss>`;
+          
+          // Write the manually generated RSS
+          await fs.writeFile(outputFile, manualRssOutput);
+          console.log(`Manually generated RSS feed written to ${outputFile}`);
+        } else {
+          // Write the feed to the output directory
+          await fs.writeFile(outputFile, rssOutput);
+          console.log(`Generated RSS feed written to ${outputFile}`);
+        }
+      } catch (error) {
+        console.error(`Error generating RSS for ${jsonFile}: ${error.message}`);
+        
+        // If RSS generation fails, create a minimal feed as fallback
+        console.log(`Creating fallback feed for ${jsonFile} due to RSS generation error`);
+        const fallbackOutput = `<?xml version="1.0" encoding="utf-8"?>
     <rss version="2.0">
       <channel>
         <title>${feedTitle}</title>
         <description>${feedDescription}</description>
         <link>https://github.com/user/artist-rss-feed-generator</link>
-        <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>`;
-        
-        // Add each item manually
-        for (const item of feed.items) {
-          manualRssOutput += `
+        <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
         <item>
-          <title>${item.title}</title>
-          <link>${item.link}</link>
-          <guid>${item.id || item.link}</guid>
-          <pubDate>${item.date.toUTCString()}</pubDate>
-          <description>${item.description}</description>`;
-          
-          // Add author if available
-          if (item.author && item.author.length > 0) {
-            manualRssOutput += `
-          <author>${item.author[0].name}</author>`;
-          }
-          
-          // Add image if available
-          if (item.image && item.image.url) {
-            manualRssOutput += `
-          <enclosure url="${item.image.url}" type="image/jpeg" />`;
-          }
-          
-          manualRssOutput += `
-        </item>`;
-        }
-        
-        // Close the channel and rss tags
-        manualRssOutput += `
+          <title>Feed Generation Error</title>
+          <link>https://github.com/user/artist-rss-feed-generator</link>
+          <description>There was an error generating this feed. Please check the artist configuration.</description>
+          <pubDate>${new Date().toUTCString()}</pubDate>
+          <guid>https://github.com/user/artist-rss-feed-generator/error-${Date.now()}</guid>
+        </item>
       </channel>
     </rss>`;
         
-        // Write the manually generated RSS
-        await fs.writeFile(outputFile, manualRssOutput);
-        console.log(`Manually generated RSS feed written to ${outputFile}`);
-      } else {
-        // Write the feed to the output directory
-        await fs.writeFile(outputFile, rssOutput);
-        console.log(`Generated RSS feed written to ${outputFile}`);
+        await fs.writeFile(outputFile, fallbackOutput);
       }
     }
     
