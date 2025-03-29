@@ -8,6 +8,10 @@
 	  "maxReleases": 3
 	},
 	{
+	  "name": "Pack Records",
+	  "url": "https://packrecords.bandcamp.com/",
+	},
+	{
 	  "name": "International Anthem Recording Company",
 	  "url": "https://intlanthem.bandcamp.com/music"
 	},
